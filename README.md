@@ -13,9 +13,9 @@ AFAIK, this module is the most comprehensive library of bootstrapping techniques
 
 ## What this package does not (yet) include
 
-This package currently only supports bootstrapping of *univariate* time-series. I would be happy to provide whatever support I can to any users who are interested in extending this package to support multivariate time-series. Otherwise, hopefully I will get to this sometime this year (2015).
+This package currently only supports bootstrapping of *univariate* time-series. I would be happy to provide whatever support I can to any users who are interested in extending this package to support multivariate time-series or bootstrapping in a linear regression framework. Otherwise, hopefully I will get to this sometime this year (2015).
 
-## How to use DependentBootstrap
+## A Quick Introduction to DependentBootstrap
 
 #### Installation
 
@@ -58,25 +58,27 @@ This concludes the quick-start. Many users will not read beyond this point. Howe
 
 In the next section, we discuss the types used by this module, including a type for each bootstrap method. The types that represent bootstrap methods invariably (except for one special case) include a field that describes the block length to use with the bootstrapping procedure. 
 
-IMPORTANT: If the user specifies a positive value for this field, then that value will be used as the block length in any calling function. If the user specifies a non-positive value for this field, or does not specify a value for this field (in this case it defaults to a non-positive value), then all calling functions will take that to imply that the user wants the function to estimate an appropriate block length from the supplied data, using either the specified block length estimation procedure, or else defaulting to the procedure most appropriate for the supplied bootstrap method.
+IMPORTANT: If the user specifies a positive value for this field, then that value will be used as the block length in any calling function. This trumps any other consideration, eg a supplied block length method etc. If the user specifies a non-positive value for this field, or does not specify a value for this field (in this case it defaults to a non-positive value), then all calling functions will take that to imply that the user wants the function to estimate an appropriate block length from the supplied data, using either the specified block length estimation procedure, or else defaulting to the procedure most appropriate for the supplied bootstrap method.
 
 In summary, if some higher being tells you what block length to use, then specify it explicitly, otherwise the software will try and automatically detect the block length for you.
 
+
+## A complete description of DependentBootstrap
 
 #### Type Definitions
 
 ###### BootstrapParam
 
-The most important type in this package is named `BootstrapParam`. This type stores all the information needed to run a specific bootstrap procedure from start to finish, excluding the actual data that is to be bootstrapped, and every function will accept a `BootstrapParam`, along with the underlying data, as inputs. The fields of `BootstrapParam` are listed now, along with their default values (supplied after the equals sign):
-* numObsData::Int, the number of observations in your dataset. One way or another, this field must be supplied by the user.
-* numObsResample::Int=numObsData, the number of observations that would want *per resample*. The vast majority of users will want numObsData = numObsResample, hence this is the default value for this field. However, there are legitimate cases where the two should differ.
+The most important type in this package is `BootstrapParam`. This type stores all the information needed to run a specific bootstrap procedure from start to finish, excluding the actual data that is to be bootstrapped. Almost every function will accept a `BootstrapParam`, along with the underlying data (in either order) as inputs. The fields of `BootstrapParam` are listed now, along with their default values (supplied after the equals sign):
+* numObsData::Int, the number of observations in your dataset. One way or another, this field must be supplied by the user, so it has no default value.
+* numObsResample::Int=numObsData, the number of observations that the user wants *per resample*. The vast majority of users will want numObsResample=numObsData, hence this is the default value for this field. However, there are legitimate cases where the two should differ.
 * numResample::Int=defaultNumResample, the number of resamples. The module includes a constant `defaultNumResample` which is set equal to 600.
-* bootstrapMethod::BootstrapMethod=BootstrapStationary(defaultBlockLength)), the bootstrap method the user wants to use. The type `BootstrapMethod` is an abstract type that stores as each of its sub-types a specific bootstrap method type. They are discussed in more detail later in this document. For now, it suffices to say that the default for this field is the stationary bootstrap using the constant (for the module) `defaultBlockLength` which is set to -1, and essentially tells the module that you want to use an appropriate data-driven method to estimate the block length.
-* blockLengthMethod::BlockLengthMethod=BlockLengthPPW2009(BandwidthP2003(), "stationary"), the method for automatically choosing an appropriate block length the user wants to use. As with `BootstrapMethod`, `BlockLengthMethod` is an abstract type that stores as each of its sub-types a specific block length method type. They are discussed in more detail later in this document. For
-* statistic::Union(Function, ASCIIString), the test statistic of interest, ie the user is interested in the distribution of the test statistic stored in this field, which is why they are bootstrapping. If this field is set to a function, it must be a function that converts a single input of type `Vector{T}`, where `T<:Number`, and return a `Float64`. If this field is set to `ASCIIString`, it must be equal to one of the following hard-coded values: `"mean"`, `"median"`, `"variance"`, `"std"` (standard deviation), `"sum"`, `"quantileXX"` (where XX should be set to the percentile of interest, e.g. `"quantile95"` for the 95% quantile)
-* distributionParam::Union(Function, ASCIIString), the distribution parameter of the test statistic that the user is interested in. Most user will be interested in either the variance/standard deviation in this field, or else confidence intervals. If this field is set to a function, it must be a function that accepts a single input of type `Vector{Float64}` and it can return whatever the user wants. If this field is set to `ASCIIString`, it must be equal to one of the following hard-coded values: `"mean"`, `"median"`, `"variance"`, `"std"` (standard deviation), `"quantileXX"` (where XX should be set to the percentile of interest, e.g. `"quantile95"` for the 95% quantile), or `"conf"` for a 95% confidence interval (for now, it has to be 95% - I'll make this more flexible soon).
+* bootstrapMethod::BootstrapMethod=BootstrapStationary(defaultBlockLength)). This field describes the bootstrap method the user wants to use. The type `BootstrapMethod` is an abstract type that stores as each of its sub-types a specific bootstrap method type. They are discussed in more detail later in this section. For now, it suffices to say that the default for this field is the stationary bootstrap using the constant (for the module) `defaultBlockLength` which is set to -1. A non-positive block length is interpreted by the functions in this module as implying that you want to use an appropriate data-driven method to estimate the block length.
+* blockLengthMethod::BlockLengthMethod=BlockLengthPPW2009(BandwidthP2003(), "stationary"). This field describes the method for automatically choosing an appropriate block length. As with `BootstrapMethod`, `BlockLengthMethod` is an abstract type that stores as each of its sub-types a specific block length method type. They are discussed in more detail later in this document. For now, it suffices to say that the default block length detection method is the on described in Politis, White (2004) "Automatic Block Length Selection For The Dependent Bootstrap", incorporating the correction in Patton, Politis, White (2009) "Correction To Automatic Block Length Selection For The Dependent Bootstrap". Specifically, it is the method that applies the stationary bootstrap, and uses the bandwidth estimator of Politis (2003) "Adaptive Bandwidth Choice".
+* statistic::Union(Function, ASCIIString). This field stores the test statistic of interest, ie the test statistic that the user is interested bootstrapping, in order to estimate a parameter of the distribution of the test statistic. If this field is set to a function, then the function must accept a single input of type `Vector{T}`, where `T<:Number`, and return a `Float64` (for example, `mean`). If this field is set to `ASCIIString`, it must be equal to one of the following hard-coded values: `"mean"`, `"median"`, `"variance"`, `"std"` (standard deviation), `"sum"`, `"quantileXX"` (where XX should be set to the percentile of interest, e.g. `"quantile95"` for the 95% quantile)
+* distributionParam::Union(Function, ASCIIString). This field stores the distribution parameter of the test statistic that the user is interested in. Most user will be interested in either the variance/standard deviation or else confidence intervals. If this field is set to a function, it must be a function that accepts a single input of type `Vector{Float64}` and it can return whatever the user wants. If this field is set to `ASCIIString`, it must be equal to one of the following hard-coded values: `"mean"`, `"median"`, `"variance"`, `"std"` (standard deviation), `"quantileXX"` (where XX should be set to the percentile of interest, e.g. `"quantile95"` for the 95% quantile), or `"conf"` for a 95% confidence interval (for now, it has to be 95% - I'll make this more flexible soon).
 
-The fields of `BootstrapParam` contain two new types, `BootstrapMethod` and `BlockLengthMethod`. They are discussed now:
+The fields of `BootstrapParam` contain two new abstract types, `BootstrapMethod` and `BlockLengthMethod`. They are discussed now:
 
 
 ###### BootstrapMethod
@@ -113,30 +115,125 @@ Note that there is no block length selection procedure designed for use with the
 
 #### Type Constructors
 
-Sub-types of `BlockLengthMethod` and `BootstrapMethod` typically only have one or two fields, and so generally have two constructors, the classic inner constructor where all fields are specified, and a default constructor, eg `BootstrapStationary()` (no inputs), that initialises the fields to sensible default values. An exception to this rule is the bandwidthMethod field of the subtypes of `BlockLengthMethod` which can typically be constructed using an `ASCIIString` input, eg
+Sub-types of `BlockLengthMethod` and `BootstrapMethod` typically only have one or two fields, and so generally have two constructors, the classic inner constructor where all fields are specified, and a default constructor with no inputs, eg `BootstrapStationary()`, that initialises the fields to sensible default values. An exception to this rule is the bandwidthMethod field of the subtypes of `BlockLengthMethod` which can typically be constructed using an `ASCIIString` input, eg
 
     bLM = BlockLengthPPW2009("P2003", "stationary")
 
-or
+to construct a type representing the block length selection procedure of Politis, White (2004) for the stationary bootstrap using the bandwidth selection procedure of Politis (2003), or
 
     blM  = BlockLengthPP2002("bartlett", "PP2002Trap")
+
+to construct a type representing the block length selection procedure of Paparoditis, Politis (2002), assuming the use of the trapezoidal kernel function with the tapered block bootstrap, and using the Bartlett method for estimating bandwidth.
+
+In the above examples, the string is converted into the appropriate type using the default constructor for that type. To find the appropriate string to associate with any given type, use `string(SomeType)`, eg `string(BandwidthP2003())` will evaluate to `"P2003"`, and `string(KernelPP2002Trap())` will evaluate to `"PP2002Trap"`.
+
+The type `BootstrapParam` is central to the entire module, since, as mentioned, nearly every function can accept a vector of data and a `BootstrapParam` as inputs (in either order). We list all constructors for this type now. A list of non-keyword constructors for `BootstrapParam` follows:
+
+* `BootstrapParam(numObsData::Int)`. Number of observations supplied, and use default values (listed above) for all other fields.
+* `BootstrapParam(numObsData::Int, statistic::Union(Function, ASCIIString), distributionParam::Union(Function, ASCIIString))`. Number of observations, test statistic of interest, and distribution parameter of test statistic, all supplied, and use default values for all other fields.
+* `BootstrapParam(numObsData::Int, numResample::Int)`. Number of observations and number of resamples supplied, and use default values for all other fields.
+* `BootstrapParam(numObsData::Int, numResample::Int, statistic::Union(Function, ASCIIString), distributionParam::Union(Function, ASCIIString))`. Number of observations, number of resamples, test statistic, and distribution parameter all supplied, and use default values for all other fields.
+* `BootstrapParam{T<:Number}(x::Vector{T})`. Number of observations equal to `length(x)`, and use default values for all other fields, except block-length which the constructor attempts to estimate using the data in `x` and the default block-length method.
+* `BootstrapParam{T<:Number}(x::Vector{T}, statistic::Union(Function, ASCIIString), distributionParam::Union(Function, ASCIIString))`. As above, but test statistic of interest, and distribution parameter of test statistic of interest, also supplied.
+* `BootstrapParam{T<:Number}(x::Vector{T}, numResample::Int)`. Number of observations equal to `length(x)`, number of resamples supplied, and use default values for all other fields, except block-length which the constructor attempts to estimate using the data in `x` and the default block-length method.
+* `BootstrapParam{T<:Number}(x::Vector{T}, numResample::Int, statistic::Union(Function, ASCIIString), distributionParam::Union(Function, ASCIIString))`. As above, except the test statistic and distribtion parameter are also supplied.
+
+This type also allows key-word constructors. These are important, since all of the functions in this module that admit keyword arguments do this by inputting those keywords into the `BootstrapParam` keyword constructor, and then feeding that `BootstrapParam` into the appropriate function. The two keyword constructors are provided now:
+
+* `BootstrapParam(numObsData::Int; numObsResample::Int=numObsData, numResample::Int=defaultNumResample, bootstrapMethod::ASCIIString="stationary", blockLength::Int=-1, blockLengthMethod::ASCIIString="PPW2009", bandwidthMethod::ASCIIString="P2003", statistic::ASCIIString="mean", distributionParam::ASCIIString="variance")`. The number of observations is supplied as the first input, and then the user can specify all other inputs using keyword arguments. Currently, this constructor limits the keyword arguments to numbers or strings. I plan on making this more flexible in the future.
+* `BootstrapParam{T<:Number}(x::Vector{T}; numObsResample::Int=length(x), numResample::Int=defaultNumResample, bootstrapMethod::ASCIIString="stationary", blockLength::Int=-1, blockLengthMethod::ASCIIString="PPW2009", bandwidthMethod::ASCIIString="P2003", statistic::ASCIIString="mean", distributionParam::ASCIIString="variance")`. The observed data is supplied as the first input, and then the user can specify all other inputs using keyword arguments. If the supplied keyword argument blockLength is non-positive (or is not specified), then the constructor will attempt to estimate the block-length using the specified (or default) block length method and the input observed data.
+
+
+#### Functions
+
+DependentBootstrap exports several functions, most of which nest each other, adding one additional piece of functionality as we move up the chain. This can be conceptualised as follows:
+
+`dBootstrapIndex` -> `dBootstrapData` -> `dBootstrapStatistic` -> `dBootstrap`
+
+where additional functionality is provided as we move across the page. There is also the stand-alone function `dBootstrapBlockLength` which estimates the block length, and `dBootstrapVar`, `dBootstrapStd`, `dBootstrapConf`, all of which wrap `dBootstrap` but with hard-coded values for the distributionParam field, ie distributionParam field is set to variance, standard deviation, or confidence intervals respectively. There are a few other stand-alone functions that we will cover at the very end.
+
+###### `dBootstrapIndex`
+
+This function is arguably the most important function in the module. It utilises multiple dispatch over the inputs (::BootstrapMethod, numObsData::Int, numObsResample::Int, numResample::Int) in order to return a set of bootstrap indices. The bootstrap indices are used to index into the original vector of data in order to create all of the bootstrap re-samples.
+
+This function has many methods. Interested users should refer to the source code. However, the vast majority of users who are interested in using this function on its own can gain all possible flexibility using just one method:
+
+    dBootstrapIndex(bp::BootstrapParam)
+
+which returns a `Matrix{Int}` of bootstrap indices that can be used to index into the original data vector to build bootstrap resamples (one resampled column of data per column of the output of `dBootstrapIndex`).
+
+The fields of a `BootstrapParam` are sufficient to tell the function exactly which type of bootstrap indices to generate. Two other methods that might be of interest are based on keywords:
+* `dBootstrapIndex{T<:Number}(numObsData::Int, blockLength::T; numObsResample::Int=numObsData, numResample::Int=defaultNumResample, bootstrapMethod::ASCIIString="stationary")`
+* `dBootstrapIndex{T<:Number}(x::Vector{T}; numObsResample::Int=length(x), numResample::Int=defaultNumResample, bootstrapMethod::ASCIIString="stationary", blockLength::Int=-1, blockLengthMethod::ASCIIString="PPW2009", bandwidthMethod::ASCIIString="P2003")`
+
+
+###### `dBootstrapData`
+
+This function wraps `dBootstrapIndex`, and in the vast majority of cases, the only functionality it adds is to use the output of `dBootstrapIndex` to index into the observable data vector. The one exception to this is for the tapered block bootstrap, where this function will also take care of applying the appropriate weighting to the returned bootstrapped data.
+
+The method that provides maximum flexibility to this function is:
+
+    dBootstrapData{T<:Number}(x::Vector{T}, bp::BootstrapParam)
     
-In these examples, the string is converted into the appropriate type using the default constructor for that type. To find the appropriate string to associated with any given type, use `string(SomeType)`, eg `string(BandwidthP2003())` evaluates to `"P2003"`.
+which returns a `Matrix{T}` of bootstrapped data, where each column corresponds to resample of the underlying data vector `x`. Some users may also wish to use keyword functionality via the following method:
 
-The type `BootstrapParam` is central to the entire module, since, as mentioned, nearly every function can accept a vector of data and a `BootstrapParam` as inputs (in either order). A list of non-keyword constructors for `BootstrapParam` follows:
+    dBootstrapData{T<:Number}(x::Vector{T}; numObsResample::Int=length(x), numResample::Int=defaultNumResample, bootstrapMethod::ASCIIString="stationary", blockLength::Int=-1, blockLengthMethod::ASCIIString="PPW2009", bandwidthMethod::ASCIIString="P2003")
+    
 
-* `BootstrapParam(numObsData::Int)`, uses default values 
-* 
-* 
-* = BootstrapParam(numObsData, numObsData, defaultNumResample, * BootstrapStationary(defaultBlockLength), BlockLengthPPW2009(BandwidthP2003(), "stationary"), "mean", "variance")
-BootstrapParam(numObsData::Int, statistic::Union(Function, ASCIIString), distributionParam::Union(Function, ASCIIString)) = BootstrapParam(numObsData, numObsData, defaultNumResample, BootstrapStationary(defaultBlockLength), BlockLengthPPW2009(BandwidthP2003(), "stationary"), statistic, distributionParam)
-BootstrapParam(numObsData::Int, numResample::Int) = BootstrapParam(numObsData, numObsData, numResample, BootstrapStationary(defaultBlockLength), BlockLengthPPW2009(BandwidthP2003(), "stationary"), "mean", "variance")
-BootstrapParam(numObsData::Int, numResample::Int, statistic::Union(Function, ASCIIString), distributionParam::Union(Function, ASCIIString)) = BootstrapParam(numObsData, numObsData, numResample, BootstrapStationary(defaultBlockLength), BlockLengthPPW2009(BandwidthP2003(), "stationary"), statistic, distributionParam)
-#Constructors with x (ie underlying data) as first input will attempt to estimate the appropriate block length from that data
-BootstrapParam{T<:Number}(x::Vector{T}) = BootstrapParam(length(x), length(x), defaultNumResample, BootstrapStationary(dBootstrapBlockLength(x, BlockLengthPPW2009(BandwidthP2003(), "stationary"))), BlockLengthPPW2009(BandwidthP2003(), "stationary"), "mean", "variance")
-BootstrapParam{T<:Number}(x::Vector{T}, statistic::Union(Function, ASCIIString), distributionParam::Union(Function, ASCIIString)) = BootstrapParam(length(x), length(x), defaultNumResample, BootstrapStationary(dBootstrapBlockLength(x, BlockLengthPPW2009(BandwidthP2003(), "stationary"))), BlockLengthPPW2009(BandwidthP2003(), "stationary"), statistic, distributionParam)
-BootstrapParam{T<:Number}(x::Vector{T}, numResample::Int) = BootstrapParam(length(x), length(x), numResample, BootstrapStationary(dBootstrapBlockLength(x, BlockLengthPPW2009(BandwidthP2003(), "stationary"))), BlockLengthPPW2009(BandwidthP2003(), "stationary"), "mean", "variance")
-BootstrapParam{T<:Number}(x::Vector{T}, numResample::Int, statistic::Union(Function, ASCIIString), distributionParam::Union(Function, ASCIIString)) = BootstrapParam(length(x), length(x), numResample, BootstrapStationary(dBootstrapBlockLength(x, BlockLengthPPW2009(BandwidthP2003(), "stationary"))), BlockLengthPPW2009(BandwidthP2003(), "stationary"), statistic, distributionParam)
+###### `dBootstrapStatistic`
+
+This function wraps `dBootstrapData`. The only functionality added by `dBootstrapStatistic` is to loop over the columns of the output of `dBootstrapData`, and to compute the test statistic of interest from each column.  Maximum flexibility can be obtained using the following method:
+
+    dBootstrapStatistic{T<:Number}(x::Vector{T}, bp::BootstrapParam)
+    
+which returns a `Vector{Float64}` with length equal to numResample (a field in `bp`). That is, the output vector contains the re-sampled test statistics of interest. The user could, for example, use this output vector to construct a histogram or kernel density estimate of the distribution of the test statistic of interest.
+
+Some users may also wish to use keyword functionality via the following method:
+
+    dBootstrapStatistic{T<:Number}(x::Vector{T}; numObsResample::Int=length(x), numResample::Int=defaultNumResample, bootstrapMethod::ASCIIString="stationary", blockLength::Int=-1, blockLengthMethod::ASCIIString="PPW2009", bandwidthMethod::ASCIIString="P2003", statistic::ASCIIString="mean")
+    
+    
+###### `dBootstrap`
+
+This function wraps `dBootstrapStatistic`. The only functionality added by `dBootstrap` is to convert the resampled test statistics output by `dBootstrapStatistic` into an estimate of a distribution parameter of the test statistic, e.g. variance, or confidence intervals. Maximum flexibility can be obtained using the following method:
+
+    dBootstrap{T<:Number}(x::Vector{T}, bp::BootstrapParam)
+    
+The output of this function can vary, although in most cases it will be a `Float64`. However, for example, in the case of confidence intervals, it will be the tuple `(Float64, Float64)`, providing lower and upper confidence bounds. Some users may also wish to use keyword functionality via the following method:
+
+    dBootstrap{T<:Number}(x::Vector{T}; numObsResample::Int=length(x), numResample::Int=defaultNumResample, bootstrapMethod::ASCIIString="stationary", blockLength::Int=-1, blockLengthMethod::ASCIIString="PPW2009", bandwidthMethod::ASCIIString="P2003", statistic::ASCIIString="mean", distributionParam::ASCIIString="variance")
+    
+
+###### `dBootstrapBlockLength`
+
+This function is a stand-alone function that can get called at various points by the other functions in the module if the block length is set to a non-positive number. There are multiple methods for this function with inputs `({T<:Number}(x::Vector{T}, bm::BlockLengthMethod)`. Multiple dispatch is used to ensure that the appropriate block length selection procedure is called. As with the other functions in this module, the easiest way to interact with this function is via the method:
+
+    dBootstrapBlockLength{T<:Number}(x::Vector{T}, bp::BootstrapParam)
+
+where `x` is the observable data vector. This will return an estimate of the block length expressed as a `Float64`. Some users may also wish to use keyword functionality via the following method:
+
+    dBootstrapBlockLength{T<:Number}(x::Vector{T}; blockLengthMethod::ASCIIString="PPW2009", bootstrapMethod::ASCIIString="stationary", bandwidthMethod::ASCIIString="P2003")
+    
+###### In-place functions
+
+All of the above functions, ie `dBootstrapIndex`, `dBootstrapData`, `dBootstrapStatistic`, `dBootstrap`, and `dBootstrapBlockLength`, all contain an "in-place" version, denoted `dBootstrapIndex!`, `dBootstrapData!`, `dBootstrapStatistic!`, `dBootstrap!`, and `dBootstrapBlockLength!`. 
+
+These in-place versions always exhibit the method `{T<:Number}(x::Vector{T}, bp::BootstrapParam)` (or with the arguments supplied in the opposite order). These methods call the regular methods, but the only difference is that *if, and only if* the block length of the input `BootstrapParam` is non-positive, these methods will update in-place the block length in the input `BootstrapParam` with a new estimate of the block length based on the data-driven methods discussed earlier in this document.
 
 
+###### Other functions
 
+As discussed, `dBootstrapVar`, `dBootstrapStd`, and `dBootstrapConf`, are all just keyword wrappers on `dBootstrap` that automatically initialise the distributionParam field to variance, standard deviation, or confidence intervals respectively.
+
+The only other exported functions are listed now:
+
+* `getBlockLength(bp::BootstrapParam)`. Returns block-length in input `bp` as a `Float64`.
+* `getBlockLength(bm::BootstrapMethod)`. Returns block-length in input bootstrap method subtype as a `Float64`.
+* `replaceBlockLength!{T<:Number}(bp::BootstrapParam, newBlockLength{T})`. Replace the block-length in `bp` with `newBlockLength`.
+* `replaceBlockLength!{T<:Number}(bm::BootstrapMethod, newBlockLength{T})`. Replace the block-length in `bm` with `newBlockLength`.
+* `replaceNumObsData!(bp::BootstrapParam, newNumObsData::Int)`. Replace the field numObsData in `bp` with the new value `newNumObsData`.
+* `replaceNumObsResample!(bp::BootstrapParam, newNumObsResample::Int)`. As above, but for the field numObsResample.
+* `replaceNumResample!(bp::BootstrapParam, newNumResample::Int)`. As above, but for the field numResample.
+
+
+This concludes the documentation for DependentBootstrap. If you have any other questions, don't hesitate to ask. If you find any bugs, please submit an issue. Any constructive recommendations would be most welcome, *especially* any places in which routines can be optimized for faster run-time.
