@@ -58,7 +58,7 @@ export 	BootstrapMethod,
 #----------------------------------------------------------
 #SET CONSTANTS FOR MODULE
 #----------------------------------------------------------
-const defaultNumResample = 600::Int #Sets the default number of re-samples used in BootstrapParam constructors
+const defaultNumResample = 1000::Int #Sets the default number of re-samples used in BootstrapParam constructors
 const defaultBlockLength = -1::Int #A default block length that is useful for constructors that initialize a BootstrapParam without estimating the block length
 const methodsThatUseWeighting = ["taperedBlock"]::Vector{ASCIIString} #Vector of bootstrap methods that necessitate weighting (ie a call to dBootstrapWeight!)
 const validBootstrapMethodsString = ["iid","stationary", "nonoverlappingBlock", "movingBlock", "circularBlock", "taperedBlock"]::Vector{ASCIIString} #Vector of valid string representations for bootstrap methods
