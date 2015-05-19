@@ -53,13 +53,7 @@ function randStatistic()
 	x = statisticList[rand(1:length(statisticList))]
 	if typeof(x) == ASCIIString
 		if x == "quantile"
-			n = rand(1:99)
-			if n < 10
-				nStr = "0" * string(n)
-			else
-				nStr = string(n)
-			end
-			x = "quantile" * nStr
+			x = "quantile" * "_" * string(rand(1:999))
 		end
 	end
 	return(x)
@@ -68,13 +62,13 @@ function randDistributionParam()
 	x = distributionParamList[rand(1:length(distributionParamList))]
 	if typeof(x) == ASCIIString
 		if x == "quantile"
-			n = rand(1:99)
-			if n < 10
-				nStr = "0" * string(n)
-			else
-				nStr = string(n)
+			for k = 1:rand(1:3)
+				x = x * "_" * string(rand(1:999))
 			end
-			x = "quantile" * nStr
+		elseif x == "conf"
+			if rand() > 0.3
+				x = x * "_0" * string(rand(1:99)) * "_" * string(rand(20:999))
+			end
 		end
 	end
 	return(x)
@@ -309,12 +303,18 @@ function testBootstrapVisual()
 			replaceNumResample!(bp, numResample)
 			meanStat = dBootstrapStatistic!(bp, x)
 			println("    Mean = 0, mean stats:")
+			if k == 5
+				println("    NOTE: Data de-meaned before applying tapered block bootstrap")
+			end
 			for j = 1:length(meanStat)
 				@printf(STDOUT, "    %1.3f", meanStat[j])
 			end
 			meanStat = dBootstrapStatistic!(bp, x5)
 			println("")
 			println("    Mean = 5, mean stats:")
+			if k == 5
+				println("    NOTE: Data de-meaned before applying tapered block bootstrap")
+			end
 			for j = 1:length(meanStat)
 				@printf(STDOUT, "    %1.3f", meanStat[j])
 			end

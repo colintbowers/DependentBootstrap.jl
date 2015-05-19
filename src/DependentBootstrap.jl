@@ -526,8 +526,6 @@ replaceBlockLength!{TBoot<:Union(BootstrapMovingBlock, BootstrapNonoverlappingBl
 
 
 
-
-
 #----------------------------------------------------------
 #FUNCTION
 #	dBootstrapBlockLength
@@ -1060,13 +1058,10 @@ function dBootstrapStatistic_GetStatistic{T<:Number}(d::Matrix{T}, bp::Bootstrap
 				statVec[n] = convert(Float64, sum(d[:, n]))
 			end
 		elseif contains(bp.statistic, "quantile")
-			if length(bp.statistic) != 10 || bp.statistic[1:8] != "quantile"
-				error("Invalid string representation of statistic to bootstrap")
-			end
-			p = convert(Float64, parse(bp.statistic[9:10])) / 100
-			if !(0 < p < 1)
-				error("Invalid string representation of statistic to bootstrap")
-			end
+			length(bp.statistic) < 10 && error("Invalid string representation of quantile statistic to bootstrap")
+			!(bp.statistic[1:9] == "quantile_") && error("Invalid string representation of quantile statistic to bootstrap")
+			p = convert(Float64, parse("0." * bp.statistic[10:end]))
+			!(0 < p < 1) && error("Invalid string representation of statistic to bootstrap")
 			for n = 1:bp.numResample
 				statVec[n] = convert(Float64, quantile(d[:, n], p))
 			end
@@ -1116,30 +1111,14 @@ end
 #Function to return bootstrapped parameter. Function is not type stable, hence it farms most of the work out to other functions
 function dBootstrap{T<:Number}(x::Vector{T}, bp::BootstrapParam)
 	if typeof(bp.distributionParam) == Function
-		return(dBootstrap_GetDistributionParam(dBootstrapStatistic(x, bp), bp.distributionParam))
+		return(dBootstrap_GetDistributionParam(dBootstrapStatistic(x, bp), bp.distributionParam)) #Many possible output types
 	elseif typeof(bp.distributionParam) == ASCIIString
-		if contains(bp.distributionParam, "conf")
-			if length(bp.distributionParam) < 4
-				error("Invalid string representation of confidence interval distribution parameter")
-			end
-			if bp.distributionParam == "conf"
-				pLower = 0.025
-				pUpper = 0.0975
-				return(dBootstrap_GetDistributionParam(dBootstrapStatistic(x, bp), pLower, pUpper))
-			else
-				if bp.distributionParam[1:4] == "conf"
-					if length(bp.distributionParam) != 8
-						error("Invalid string representation of confidence interval distribution parameter")
-					end
-					pLower = 0.01 * parse(bp.distributionParam[5:6])
-					pUpper = 0.01 * parse(bp.distributionParam[7:8])
-					return(dBootstrap_GetDistributionParam(dBootstrapStatistic(x, bp), pLower, pUpper))
-				else
-					error("Invalid string representation of confidence interval distribution parameter")
-				end
-			end
+		if contains(bp.distributionParam, "quantile")
+			return(dBootstrap_GetDistributionParamQuantile(dBootstrapStatistic(x, bp), bp.distributionParam)) #Vector output
+		elseif contains(bp.distributionParam, "conf")
+			return(dBootstrap_GetDistributionParamConf(dBootstrapStatistic(x, bp), bp.distributionParam)) #Vector output
 		else
-			return(dBootstrap_GetDistributionParam(dBootstrapStatistic(x, bp), bp.distributionParam))
+			return(dBootstrap_GetDistributionParam(dBootstrapStatistic(x, bp), bp.distributionParam)) #Float64 output
 		end
 	else
 		error("Logic fail. Invalid type in distributionParam field of BootstrapParam")
@@ -1158,7 +1137,7 @@ end
 dBootstrap!{T<:Number}(bp::BootstrapParam, x::Vector{T}) = dBootstrap!(x, bp)
 #Method for arbitrary function input
 dBootstrap_GetDistributionParam(s::Vector{Float64}, f::Function) = f(s)
-#Method for pre-set ASCIIString input
+#Method for pre-set ASCIIString input (excluding quantiles and confidence intervals)
 function dBootstrap_GetDistributionParam(s::Vector{Float64}, fStr::ASCIIString)
 	if fStr == "mean"
 		return(mean(s))
@@ -1168,29 +1147,37 @@ function dBootstrap_GetDistributionParam(s::Vector{Float64}, fStr::ASCIIString)
 		return(var(s))
 	elseif fStr == "std"
 		return(std(s))
-	elseif contains(fStr, "quantile")
-		if length(fStr) != 10 || fStr[1:8] != "quantile"
-			error("Invalid string representation of distribution parameter function")
-		end
-		p = convert(Float64, parse(fStr[9:10])) / 100
-		if !(0 < p < 1)
-			error("Invalid string representation of distribution parameter function")
-		end
-		return(quantile(s, p))
 	else
 		error("Invalid string representation of distribution parameter function")
 	end
 end
-#Dedicated method for confidence intervals
-function dBootstrap_GetDistributionParam(s::Vector{Float64}, pLower::Float64, pUpper::Float64)
-	if !(0 < pLower < 1) || !(0 < pUpper < 1)
-		error("Input probabilities for confidence interval are outside (0, 1)")
+#Function for pre-set ASCIIString input for quantiles
+function dBootstrap_GetDistributionParamQuantile(s::Vector{Float64}, fStr::ASCIIString)
+	fStrVec = split(fStr, '_')
+	length(fStrVec) < 2 && error("Invalid string representation of distribution parameter quantile")
+	fStrVec[1] != "quantile" && error("Invalid string representation of distribution parameter quantile")
+	pVec = Array(Float64, length(fStrVec)-1)
+	for k = 2:length(fStrVec)
+		pVec[k-1] = convert(Float64, parse("0." * fStrVec[k]))
+		!(0 < pVec[k-1] < 1) && error("Invalid string representation of distribution parameter quantile")
 	end
-	if pLower >= pUpper
-		error("Input probabilities for confidence interval are invalid")
-	end
-	return(quantile(s, [pLower, pUpper]))
+	return(quantile(s, pVec))
 end
+function dBootstrap_GetDistributionParamConf(s::Vector{Float64}, fStr::ASCIIString)
+	if fStr == "conf"
+		return(quantile(s, [0.025, 0.975]))	#Default behaviour of 95% confidence bound
+	else
+		fStrVec = split(fStr, '_')
+		length(fStrVec) != 3 && error("Invalid string representation of distribution parameter confidence interval")
+		fStrVec[1] != "conf" && error("Invalid string representation of distribution parameter confidence interval")
+		pVec = [convert(Float64, parse("0." * fStrVec[2])), convert(Float64, parse("0." * fStrVec[3]))]
+		!(0 < pVec[1] < 1) && error("Distribution parameter confidence interval lower probability outside (0, 1)")
+		!(0 < pVec[2] < 1) && error("Distribution parameter confidence interval upper probability outside (0, 1)")
+		pVec[1] >= pVec[2] && error("Distribution parameter confidence interval lower bound >= upper bound")
+		return(quantile(s, pVec))
+	end
+end
+
 
 
 
