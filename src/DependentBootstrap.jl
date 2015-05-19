@@ -39,6 +39,8 @@ export 	BootstrapMethod,
 		replaceNumObsResample!,
 		replaceNumResample!,
 		replaceBlockLength!,
+		confString,
+		quantileString,
 		dBootstrapBlockLength,
 		dBootstrapBlockLength!,
 		dBootstrapIndex,
@@ -1180,6 +1182,57 @@ end
 
 
 
+#----------------------------------------------------------
+#FUNCTION
+#	confString
+#INPUT
+#	Function accepts:
+#		(p::Number): Convert confidence level (expressed as probability) p into a string of the form "conf_LB_UB" which is a valid string input for field BootstrapParam.distributionParam
+#		(pLB::Number, pUB::Number): Convert lower and upper probabilities into a string of the form "conf_LB_UB" which is a valid string input for field BootstrapParam.distributionParam
+#OUTPUT
+#	ASCIIString of the form "conf_LB_UB"
+#PURPOSE
+#	This function is just provided for the convenience of converting a confidence level, or a set of confidence probabilities, into a valid "conf_LB_UB" string
+#NOTES
+#----------------------------------------------------------
+function confString(p::Number)
+	!(0 < p < 1) && error("Input probability does not lie on the interval (0, 1)")
+	return("conf_" * string(p/2)[3:end] * "_" * string(1 - p/2)[3:end])
+end
+function confString(pLB::Number, pUB::Number)
+	!(0 < pLB < 1) && error("Input lower probability does not lie on the interval (0, 1)")
+	!(0 < pUB < 1) && error("Input upper probability does not lie on the interval (0, 1)")
+	pLB >= pUB && error("Input lower probability >= input upper probability")
+	return("conf_" * string(pLB)[3:end] * "_" * string(pUB)[3:end])
+end
+
+
+#----------------------------------------------------------
+#FUNCTION
+#	quantileString
+#INPUT
+#	Function accepts:
+#		(p::Number): Convert probability p into a string of the form "quantile_X" which is a valid string input for field BootstrapParam.statistic
+#		{T<:Number}(pVec::Vector{T}): Convert vector of probabilities pVec into a string of the form "quantile_A_B_C..." which is a valid string input for field BootstrapParam.distributionParam
+#OUTPUT
+#	ASCIIString of the form "quantile_X" or "quantile_A_B_C..."
+#PURPOSE
+#	This function is just provided for the convenience of converting a set of probabilities into a valid quantile string
+#NOTES
+#----------------------------------------------------------
+function quantileString(p::Number)
+	!(0 < p < 1) && error("Input probability does not lie on the interval (0, 1)")
+	return("quantile_" * string(p)[3:end])
+end
+function quantileString{T<:Number}(pVec::Vector{T})
+	length(pVec) < 1 && error("Input vector must contain at least one element")
+	pVecStr = Array(ASCIIString, length(pVec))
+	for k = 1:length(pVec)
+		!(0 < pVec[k] < 1) && error("Input probability does not lie on the interval (0, 1)")
+		pVecStr[k] = string(pVec[k])[3:end]
+	end
+	return("quantile_" * join(pVecStr, "_"))
+end
 
 
 
