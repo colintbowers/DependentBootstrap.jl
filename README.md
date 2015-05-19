@@ -234,6 +234,9 @@ The only other exported functions are listed now:
 * `replaceNumObsData!(bp::BootstrapParam, newNumObsData::Int)`. Replace the field numObsData in `bp` with the new value `newNumObsData`.
 * `replaceNumObsResample!(bp::BootstrapParam, newNumObsResample::Int)`. As above, but for the field numObsResample.
 * `replaceNumResample!(bp::BootstrapParam, newNumResample::Int)`. As above, but for the field numResample.
-
+* `quantileString(p::Number)`. Build a string of the form `"quantile_X"` for probability p.
+* `quantileString{T<:Number}(p::Vector{T})`. Build a string of the form `"quantile_A_B_C..."` for probabilities in vector p.
+* `confString(p::Number)`. Build a string of the form `"conf_LB_UB"` for confidence level in probability p, eg `confString(0.05)` evaluates to `"conf_025_975"`.
+* `confString(pLB::Number, pUB::Number)`. As above but specify the probabilities explciitly instead of using a confidence level.
 
 This concludes the documentation for DependentBootstrap. If you have any other questions, don't hesitate to ask. If you find any bugs, please submit an issue. Any constructive recommendations would be most welcome, *especially* any places in which routines can be optimized for faster run-time.
