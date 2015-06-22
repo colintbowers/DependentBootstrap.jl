@@ -527,7 +527,6 @@ replaceBlockLength!{TBoot<:Union(BootstrapMovingBlock, BootstrapNonoverlappingBl
 
 
 
-
 #----------------------------------------------------------
 #FUNCTION
 #	dBootstrapBlockLength
