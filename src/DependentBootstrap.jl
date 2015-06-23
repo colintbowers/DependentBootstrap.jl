@@ -1016,68 +1016,45 @@ dBootstrapData!{T<:Number}(bp::BootstrapParam, x::Vector{T}) = dBootstrapData!(x
 #	Distribution parameter of statistic of interest is irrelevant to this function, as this will be estimated from the output of this function
 #	This function employs the non-exported function dBootstrapStatistic_GetStatistic
 #----------------------------------------------------------
-dBootstrapStatistic{T<:Number}(x::Vector{T}, bp::BootstrapParam) = dBootstrapStatistic_GetStatistic(dBootstrapData(x, bp), bp)
+dBootstrapStatistic{T<:Number}(x::Vector{T}, bp::BootstrapParam) = dBootstrapStatistic_GetStatistic(dBootstrapData(x, bp), bp, bp.statistic)
 dBootstrapStatistic{T<:Number}(bp::BootstrapParam, x::Vector{T}) = dBootstrapStatistic(x, bp)
 #Keyword argument wrapper
 dBootstrapStatistic{T<:Number}(x::Vector{T}; numObsResample::Int=length(x), numResample::Int=defaultNumResample, bootstrapMethod::ASCIIString="stationary", blockLength::Int=-1, blockLengthMethod::ASCIIString="PPW2009", bandwidthMethod::ASCIIString="P2003", statistic::ASCIIString="mean") = dBootstrapStatistic(x, BootstrapParam(x, numObsResample=numObsResample, numResample=numResample, bootstrapMethod=bootstrapMethod, blockLength=blockLength, blockLengthMethod=blockLengthMethod, bandwidthMethod=bandwidthMethod, statistic=statistic))
 #Update BootstrapParam in place wrapper
-dBootstrapStatistic!{T<:Number}(x::Vector{T}, bp::BootstrapParam) = dBootstrapStatistic_GetStatistic(dBootstrapData!(x, bp), bp)
+dBootstrapStatistic!{T<:Number}(x::Vector{T}, bp::BootstrapParam) = dBootstrapStatistic_GetStatistic(dBootstrapData!(x, bp), bp, bp.statistic)
 dBootstrapStatistic!{T<:Number}(bp::BootstrapParam, x::Vector{T}) = dBootstrapStatistic!(x, bp)
 #Non-exported function used exclusively by dBootstrapStatistic to compute the actual statistics
-function dBootstrapStatistic_GetStatistic{T<:Number}(d::Matrix{T}, bp::BootstrapParam)
-	statVec = Array(Float64, bp.numResample)
+function dBootstrapStatistic_GetStatistic{T<:Number}(d::Matrix{T}, bp::BootstrapParam, statMethod::ASCIIString)
 	if typeof(bp.bootstrapMethod) == BootstrapTaperedBlock
-		if typeof(bp.statistic) == ASCIIString
-			if !(bp.statistic == "mean" || bp.statistic == "sum")
-				error("Module is currently unable to perform the tapered block bootstrap for statistics other than the mean or sum")
-			end
-		else
-			if !(bp.statistic == mean || bp.statistic == sum)
-				error("Module is currently unable to perform the tapered block bootstrap for statistics other than the mean or sum")
-			end
-		end
+		!(statMethod == "mean" || statMethod == "sum") && error("Module is currently unable to perform the tapered block bootstrap for statistics other than the mean or sum")
 	end
-	if typeof(bp.statistic) == ASCIIString #bp.statistic is set to a recognized ASCIIString
-		if bp.statistic == "mean"
-			for n = 1:bp.numResample
-				statVec[n] = convert(Float64, mean(d[:, n]))
-			end
-		elseif bp.statistic == "median"
-			for n = 1:bp.numResample
-				statVec[n] = convert(Float64, median(d[:, n]))
-			end
-		elseif bp.statistic == "variance" || bp.statistic == "var"
-			for n = 1:bp.numResample
-				statVec[n] = convert(Float64, var(d[:, n]))
-			end
-		elseif bp.statistic == "std"
-			for n = 1:bp.numResample
-				statVec[n] = convert(Float64, std(d[:, n]))
-			end
-		elseif bp.statistic == "sum"
-			for n = 1:bp.numResample
-				statVec[n] = convert(Float64, sum(d[:, n]))
-			end
-		elseif contains(bp.statistic, "quantile")
-			length(bp.statistic) < 10 && error("Invalid string representation of quantile statistic to bootstrap")
-			!(bp.statistic[1:9] == "quantile_") && error("Invalid string representation of quantile statistic to bootstrap")
-			p = convert(Float64, parse("0." * bp.statistic[10:end]))
-			!(0 < p < 1) && error("Invalid string representation of statistic to bootstrap")
-			for n = 1:bp.numResample
-				statVec[n] = convert(Float64, quantile(d[:, n], p))
-			end
-		else
-			error("Invalid string representation of statistic to bootstrap")
-		end
-	else #bp.statistic is a function defined over Vector{Number} and returning a Float64 or type that can be converted
-		statVec = Array(Float64, bp.numResample)
-		for n = 1:bp.numResample
-			statVec[n] = convert(Float64, bp.statistic(d[:, n]))
-		end
+	N = size(d, 1)
+	if bp.statistic == "mean"
+		statVec = [ convert(Float64, mean(sub(d, 1:N, m))) for m = 1:size(d, 2) ]
+	elseif bp.statistic == "median"
+		statVec = [ convert(Float64, median(sub(d, 1:N, m))) for m = 1:size(d, 2) ]
+	elseif bp.statistic == "variance" || bp.statistic == "var"
+		statVec = [ convert(Float64, var(sub(d, 1:N, m))) for m = 1:size(d, 2) ]
+	elseif bp.statistic == "std"
+		statVec = [ convert(Float64, std(sub(d, 1:N, m))) for m = 1:size(d, 2) ]
+	elseif bp.statistic == "sum"
+		statVec = [ convert(Float64, sum(sub(d, 1:N, m))) for m = 1:size(d, 2) ]
+	elseif contains(bp.statistic, "quantile")
+		p = dBootstrapStatistic_get_quantile_probability(bp.statistic)
+		statVec = [ convert(Float64, quantile(sub(d, 1:N, m), p)) for m = 1:size(d, 2) ]
+	else
+		error("Invalid string representation of statistic to bootstrap")
 	end
 	return(statVec)
 end
-
+dBootstrapStatistic_GetStatistic{T<:Number}(d::Matrix{T}, bp::BootstrapParam, statMethod::Function) = [ convert(Float64, statMethod(sub(d, 1:N, m))) for m = 1:size(d, 2) ]
+function dBootstrapStatistic_get_quantile_probability(x::ASCIIString)
+	length(x) < 10 && error("Invalid string representation of quantile statistic to bootstrap")
+	x[1:9] != "quantile_" && error("Invalid string representation of quantile statistic to bootstrap")
+	p = convert(Float64, parse("0." * bp.statistic[10:end]))
+	!(0 < p < 1) && error("Invalid string representation of statistic to bootstrap")
+	return(p)
+end
 
 
 
