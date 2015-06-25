@@ -2,6 +2,11 @@
 
 A module for the Julia language that implements several varieties of the dependent statistical bootstrap as well as the corresponding block-length selection procedures.
 
+## WARNING
+
+This module underwent a major update today (June 25th, 2015). I have not updated the docs yet to reflect this update, so if you want to use this module you will have to examine the source code yourself. I should hopefully get round to this sometime in the next few weeks.
+
+## OLD DOCS FOLLOW
 
 ## Main Features
 
@@ -48,7 +53,7 @@ Note that in both these examples I did not need to specify the keyword arguments
 Some users may wish instead to plot an empirical distribution of their bootstrapped test statistics, rather than obtain a specific distribution parameter. I have not yet implemented this capability, however, these users can use the function `dBootstrapStatistic` in order to return the bootstrapped test statistics (as type `Vector{Float64}`), eg
 
     bootTestStatVec = dBootstrapStatistic(x, ...)
-    
+
 and then build the histogram themselves. Note, the valid keyword arguments to `dBootstrapStatistic` are identical to those described above, with the exception of distributionParam, which is obviously no longer relevant since we're not computing any distribution parameters. In fact, the `dBoostrap` function is actually just a wrapper on `dBootstrapStatistic` that performs the additional step of estimating a distribution parameter from the bootstrapped test statistics. In a similar fashion, `dBootstrapStatistic` is a wrapper on `dBootstrapData`, and `dBootstrapData` is a wrapper on `dBootstrapIndex`. Interested users can explore some of these other functions, or else keep reading to find out more.
 
 This concludes the quick-start. Many users will not read beyond this point. However, for those who wish to understand the full flexibility offered by this package, read on!
@@ -56,7 +61,7 @@ This concludes the quick-start. Many users will not read beyond this point. Howe
 
 #### A quick note on block lengths
 
-In the next section, we discuss the types used by this module, including a type for each bootstrap method. The types that represent bootstrap methods invariably (except for one special case) include a field that describes the block length to use with the bootstrapping procedure. 
+In the next section, we discuss the types used by this module, including a type for each bootstrap method. The types that represent bootstrap methods invariably (except for one special case) include a field that describes the block length to use with the bootstrapping procedure.
 
 IMPORTANT: If the user specifies a positive value for this field, then that value will be used as the block length in any calling function. This trumps any other consideration, eg a supplied block length method etc. If the user specifies a non-positive value for this field, or does not specify a value for this field (in this case it defaults to a non-positive value), then all calling functions will take that to imply that the user wants the function to estimate an appropriate block length from the supplied data, using either the specified block length estimation procedure, or else defaulting to the procedure most appropriate for the supplied bootstrap method.
 
@@ -174,35 +179,35 @@ This function wraps `dBootstrapIndex`, and in the vast majority of cases, the on
 The method that provides maximum flexibility to this function is:
 
     dBootstrapData{T<:Number}(x::Vector{T}, bp::BootstrapParam)
-    
+
 which returns a `Matrix{T}` of bootstrapped data, where each column corresponds to resample of the underlying data vector `x`. Some users may also wish to use keyword functionality via the following method:
 
     dBootstrapData{T<:Number}(x::Vector{T}; numObsResample::Int=length(x), numResample::Int=defaultNumResample, bootstrapMethod::ASCIIString="stationary", blockLength::Int=-1, blockLengthMethod::ASCIIString="PPW2009", bandwidthMethod::ASCIIString="P2003")
-    
+
 
 ###### `dBootstrapStatistic`
 
 This function wraps `dBootstrapData`. The only functionality added by `dBootstrapStatistic` is to loop over the columns of the output of `dBootstrapData`, and to compute the test statistic of interest from each column.  Maximum flexibility can be obtained using the following method:
 
     dBootstrapStatistic{T<:Number}(x::Vector{T}, bp::BootstrapParam)
-    
+
 which returns a `Vector{Float64}` with length equal to numResample (a field in `bp`). That is, the output vector contains the re-sampled test statistics of interest. The user could, for example, use this output vector to construct a histogram or kernel density estimate of the distribution of the test statistic of interest.
 
 Some users may also wish to use keyword functionality via the following method:
 
     dBootstrapStatistic{T<:Number}(x::Vector{T}; numObsResample::Int=length(x), numResample::Int=defaultNumResample, bootstrapMethod::ASCIIString="stationary", blockLength::Int=-1, blockLengthMethod::ASCIIString="PPW2009", bandwidthMethod::ASCIIString="P2003", statistic::ASCIIString="mean")
-    
-    
+
+
 ###### `dBootstrap`
 
 This function wraps `dBootstrapStatistic`. The only functionality added by `dBootstrap` is to convert the resampled test statistics output by `dBootstrapStatistic` into an estimate of a distribution parameter of the test statistic, e.g. variance, or confidence intervals. Maximum flexibility can be obtained using the following method:
 
     dBootstrap{T<:Number}(x::Vector{T}, bp::BootstrapParam)
-    
+
 The output of this function can vary, although in most cases it will be a `Float64`. However, for example, in the case of confidence intervals, it will be the tuple `(Float64, Float64)`, providing lower and upper confidence bounds. Some users may also wish to use keyword functionality via the following method:
 
     dBootstrap{T<:Number}(x::Vector{T}; numObsResample::Int=length(x), numResample::Int=defaultNumResample, bootstrapMethod::ASCIIString="stationary", blockLength::Int=-1, blockLengthMethod::ASCIIString="PPW2009", bandwidthMethod::ASCIIString="P2003", statistic::ASCIIString="mean", distributionParam::ASCIIString="variance")
-    
+
 
 ###### `dBootstrapBlockLength`
 
@@ -213,10 +218,10 @@ This function is a stand-alone function that can get called at various points by
 where `x` is the observable data vector. This will return an estimate of the block length expressed as a `Float64`. Some users may also wish to use keyword functionality via the following method:
 
     dBootstrapBlockLength{T<:Number}(x::Vector{T}; blockLengthMethod::ASCIIString="PPW2009", bootstrapMethod::ASCIIString="stationary", bandwidthMethod::ASCIIString="P2003")
-    
+
 ###### In-place functions
 
-All of the above functions, ie `dBootstrapIndex`, `dBootstrapData`, `dBootstrapStatistic`, `dBootstrap`, and `dBootstrapBlockLength`, all contain an "in-place" version, denoted `dBootstrapIndex!`, `dBootstrapData!`, `dBootstrapStatistic!`, `dBootstrap!`, and `dBootstrapBlockLength!`. 
+All of the above functions, ie `dBootstrapIndex`, `dBootstrapData`, `dBootstrapStatistic`, `dBootstrap`, and `dBootstrapBlockLength`, all contain an "in-place" version, denoted `dBootstrapIndex!`, `dBootstrapData!`, `dBootstrapStatistic!`, `dBootstrap!`, and `dBootstrapBlockLength!`.
 
 These in-place versions always exhibit the method `{T<:Number}(x::Vector{T}, bp::BootstrapParam)` (or with the arguments supplied in the opposite order). These methods call the regular methods, but the only difference is that *if, and only if* the block length of the input `BootstrapParam` is non-positive, these methods will update in-place the block length in the input `BootstrapParam` with a new estimate of the block length based on the data-driven methods discussed earlier in this document.
 
