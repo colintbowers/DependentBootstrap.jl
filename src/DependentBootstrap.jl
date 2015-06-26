@@ -3,10 +3,8 @@ module DependentBootstrap
 #PURPOSE
 #	Colin T. Bowers module for dependent bootstraps
 #NOTES
-#	The following functions will probably need new methods if you add a new bootstrap method
-#		dbootstrapindex (probably)
-#		replaceBlockLength!
 #	Throughout this module, automatic block length estimation (and hence the type BlockLengthMethod) is only ever used if the current block length is <= 0 (note, default block lengths are -1)
+#	Note, all keyword methods of the functions in this module are funnelled through the BootstrapParam keyword constructor.
 #LICENSE
 #	MIT License (see github repository for more detail: https://github.com/colintbowers/DependentBootstrap.jl.git)
 #-----------------------------------------------------------
@@ -272,11 +270,14 @@ end
 #NOTES
 #	In the vast majority of cases, numObsData = numObsResample. The constructors reflect this.
 #	The block length is a field of bootstrapMethod. It is understood that any block length <= 0 implies that the user wants the function to auto-detect the block length
-#	The following functions for statistic or distributionParam field are hard-coded to an if-statement, so there is no performance penalty to passing them around in this type:
+#	The statistic field is a function which implies type instability. However, the most popular choices for this field have been hard-coded to an if statement and an explicit call to the underlying so there is no performance overhead. Use options to take advantage of this include:
 #		*mean
+#		*median
 #		*var
 #		*std
-#		*XXXXX
+#		*DependentBootstrap.quantile_x (where x can take value 001, 01, 05, 1, 9, 95, 99, 999. These are interpreted as probabilities with a 0. in front of them)
+#		*sum
+#	The distributionParam field is a function which implies type instability. Hence dbootstrap and dbootstrap! are NOT TYPE STABLE. However, specialised versions of this function that are type stable are provided and take the form dbootstrap_x where x is the function name.
 #----------------------------------------------------------
 #----------- TYPE DEFINITION --------------------
 type BootstrapParam
@@ -300,14 +301,14 @@ function BootstrapParam(numObsData::Int; numObsResample::Int=numObsData, numResa
 	if convert(Int, blockLength) != -1
 		blockLength <= 0 && error("blockLength keyword argument must be strictly positive")
 		typeof(blockLengthMethod) != BlockLength_Dummy && error("There is no need to specify a blockLengthMethod if you have already specified a block length")
-		blockLengthMethod = BlockLengthPPW2009()
+		blockLengthMethod = BlockLengthPPW2009(numObsData)
 		update!(bootstrapMethod, blockLength)
 	else
 		if typeof(blockLengthMethod) == BlockLength_Dummy #We need to automatically decide a block-length procedure
-			if typeof(bootstrapMethod) == BootstrapStationary; blockLengthMethod = BlockLengthPPW2009(BandwidthP2003(), "stationary")
-			elseif typeof(bootstrapMethod) == BootstrapCircularBlock; blockLengthMethod = BlockLengthPPW2009(BandwidthP2003(), "circularBlock")
-			elseif typeof(bootstrapMethod) == BootstrapMovingBlock; blockLengthMethod = BlockLengthPPW2009(BandwidthP2003(), "movingBlock")
-			elseif typeof(bootstrapMethod) == BootstrapTaperedBlock; blockLengthMethod = BlockLengthPP2002(BandwidthP2003(), KernelPP2002Trap())
+			if typeof(bootstrapMethod) == BootstrapStationary; blockLengthMethod = BlockLengthPPW2009(BandwidthP2003(numObsData), "stationary")
+			elseif typeof(bootstrapMethod) == BootstrapCircularBlock; blockLengthMethod = BlockLengthPPW2009(BandwidthP2003(numObsData), "circularBlock")
+			elseif typeof(bootstrapMethod) == BootstrapMovingBlock; blockLengthMethod = BlockLengthPPW2009(BandwidthP2003(numObsData), "movingBlock")
+			elseif typeof(bootstrapMethod) == BootstrapTaperedBlock; blockLengthMethod = BlockLengthPP2002(BandwidthP2003(numObsData), KernelPP2002Trap())
 			else; error("Automatic blockLengthMethod selection not possible for chosen bootstrapMethod. Please explicitly specify either a blockLength or blockLengthMethod.")
 			end
 		end
@@ -683,14 +684,14 @@ function dbootstrapstatistic_getstatistic{T<:Number}(d::Matrix{T}, bp::Bootstrap
 	elseif bp.statistic == var; statVec = [ convert(Float64, var(sub(d, 1:N, m))) for m = 1:size(d, 2) ]
 	elseif bp.statistic == std; statVec = [ convert(Float64, std(sub(d, 1:N, m))) for m = 1:size(d, 2) ]
 	elseif bp.statistic == sum; statVec = [ convert(Float64, sum(sub(d, 1:N, m))) for m = 1:size(d, 2) ]
-	elseif bp.statistic == quantile_001; statVec = [ convert(Float64, quantile(sub(d, 1:N, m), 0.001)) for m = 1:size(d, 2) ]
-	elseif bp.statistic == quantile_01; statVec = [ convert(Float64, quantile(sub(d, 1:N, m), 0.01)) for m = 1:size(d, 2) ]
-	elseif bp.statistic == quantile_05; statVec = [ convert(Float64, quantile(sub(d, 1:N, m), 0.05)) for m = 1:size(d, 2) ]
-	elseif bp.statistic == quantile_1; statVec = [ convert(Float64, quantile(sub(d, 1:N, m), 0.1)) for m = 1:size(d, 2) ]
-	elseif bp.statistic == quantile_9; statVec = [ convert(Float64, quantile(sub(d, 1:N, m), 0.9)) for m = 1:size(d, 2) ]
-	elseif bp.statistic == quantile_95; statVec = [ convert(Float64, quantile(sub(d, 1:N, m), 0.95)) for m = 1:size(d, 2) ]
-	elseif bp.statistic == quantile_99; statVec = [ convert(Float64, quantile(sub(d, 1:N, m), 0.99)) for m = 1:size(d, 2) ]
-	elseif bp.statistic == quantile_999; statVec = [ convert(Float64, quantile(sub(d, 1:N, m), 0.999)) for m = 1:size(d, 2) ]
+	elseif bp.statistic == DependentBootstrap.quantile_001; statVec = [ convert(Float64, quantile(sub(d, 1:N, m), 0.001)) for m = 1:size(d, 2) ]
+	elseif bp.statistic == DependentBootstrap.quantile_01; statVec = [ convert(Float64, quantile(sub(d, 1:N, m), 0.01)) for m = 1:size(d, 2) ]
+	elseif bp.statistic == DependentBootstrap.quantile_05; statVec = [ convert(Float64, quantile(sub(d, 1:N, m), 0.05)) for m = 1:size(d, 2) ]
+	elseif bp.statistic == DependentBootstrap.quantile_1; statVec = [ convert(Float64, quantile(sub(d, 1:N, m), 0.1)) for m = 1:size(d, 2) ]
+	elseif bp.statistic == DependentBootstrap.quantile_9; statVec = [ convert(Float64, quantile(sub(d, 1:N, m), 0.9)) for m = 1:size(d, 2) ]
+	elseif bp.statistic == DependentBootstrap.quantile_95; statVec = [ convert(Float64, quantile(sub(d, 1:N, m), 0.95)) for m = 1:size(d, 2) ]
+	elseif bp.statistic == DependentBootstrap.quantile_99; statVec = [ convert(Float64, quantile(sub(d, 1:N, m), 0.99)) for m = 1:size(d, 2) ]
+	elseif bp.statistic == DependentBootstrap.quantile_999; statVec = [ convert(Float64, quantile(sub(d, 1:N, m), 0.999)) for m = 1:size(d, 2) ]
 	else
 		#If we reach this point, bp.statistic is not a recognized function and so we have to put up with the performance overhead
 		statVec = [ convert(Float64, bp.statistic(sub(d, 1:N, m))) for m = 1:size(d, 2) ]
@@ -698,14 +699,14 @@ function dbootstrapstatistic_getstatistic{T<:Number}(d::Matrix{T}, bp::Bootstrap
 	return(statVec)
 end
 #We define each of the above quantile functions locally. Note, these functions don't actually get called. I prefer to let the official quantile function handle sub-array case
-quantile_001{T<:Number}(x::Vector{T}) = quantile(x, 0.001)
-quantile_01{T<:Number}(x::Vector{T}) = quantile(x, 0.01)
-quantile_05{T<:Number}(x::Vector{T}) = quantile(x, 0.05)
-quantile_1{T<:Number}(x::Vector{T}) = quantile(x, 0.1)
-quantile_9{T<:Number}(x::Vector{T}) = quantile(x, 0.9)
-quantile_95{T<:Number}(x::Vector{T}) = quantile(x, 0.95)
-quantile_99{T<:Number}(x::Vector{T}) = quantile(x, 0.99)
-quantile_999{T<:Number}(x::Vector{T}) = quantile(x, 0.999)
+DependentBootstrap.quantile_001{T<:Number}(x::Vector{T}) = quantile(x, 0.001)
+DependentBootstrap.quantile_01{T<:Number}(x::Vector{T}) = quantile(x, 0.01)
+DependentBootstrap.quantile_05{T<:Number}(x::Vector{T}) = quantile(x, 0.05)
+DependentBootstrap.quantile_1{T<:Number}(x::Vector{T}) = quantile(x, 0.1)
+DependentBootstrap.quantile_9{T<:Number}(x::Vector{T}) = quantile(x, 0.9)
+DependentBootstrap.quantile_95{T<:Number}(x::Vector{T}) = quantile(x, 0.95)
+DependentBootstrap.quantile_99{T<:Number}(x::Vector{T}) = quantile(x, 0.99)
+DependentBootstrap.quantile_999{T<:Number}(x::Vector{T}) = quantile(x, 0.999)
 
 
 
