@@ -68,7 +68,7 @@ export 	BootstrapMethod,
 #----------------------------------------------------------
 const defaultNumResample = 1000::Int #Sets the default number of re-samples used in BootstrapParam constructors
 const defaultBlockLength = -1::Int #A default block length that is useful for constructors that initialize a BootstrapParam without estimating the block length
-const methodsThatUseWeighting = ["taperedBlock"]::Vector{ASCIIString} #Vector of bootstrap methods that necessitate weighting (ie a call to dbootstrapweight!)
+const methodsThatUseWeighting = [:taperedBlock]::Vector{Symbol} #Vector of bootstrap methods that necessitate weighting (ie a call to dbootstrapweight!)
 
 
 
@@ -192,18 +192,18 @@ type BlockLength_Dummy <: BlockLengthMethod; end
 #Block length detection procedure of Patton, Politis, White (2009)
 type BlockLengthPPW2009 <: BlockLengthMethod
 	bandwidthMethod::BandwidthMethod
-	bootstrapMethod::ASCIIString #Use ASCIIString here instead of BootstrapMethod because we don't care about block length (it is only needed because there are some minor differences in method depending on whether dealing with stationary boostrap versus other block bootstrap methods)
-	function BlockLengthPPW2009{T<:BandwidthMethod}(bandwidthMethod::T, bootstrapMethod::ASCIIString)
-		if !(bootstrapMethod == "stationary" || bootstrapMethod == "circularBlock" || bootstrapMethod == "movingBlock")
+	bootstrapMethod::Symbol
+	function BlockLengthPPW2009{T<:BandwidthMethod}(bandwidthMethod::T, bootstrapMethod::Symbol)
+		if !(bootstrapMethod == :stationary || bootstrapMethod == :circularBlock || bootstrapMethod == :movingBlock)
 			error("BlockLengthPPW2009 detection method only viable for stationary, circular block, and moving block bootstraps")
 		end
 		new(bandwidthMethod, bootstrapMethod)
 	end
 end
-BlockLengthPPW2009() = BlockLengthPPW2009(BandwidthP2003(), "stationary")
-BlockLengthPPW2009(numObs::Int) = BlockLengthPPW2009(BandwidthP2003(numObs), "stationary")
-BlockLengthPPW2009(numObs::Int, bootstrapMethod::ASCIIString) = BlockLengthPPW2009(BandwidthP2003(numObs), bootstrapMethod)
-BlockLengthPPW2009(bandwidthMethod::BandwidthMethod) = BlockLengthPPW2009(bandwidthMethod, "stationary")
+BlockLengthPPW2009() = BlockLengthPPW2009(BandwidthP2003(), :stationary)
+BlockLengthPPW2009(numObs::Int) = BlockLengthPPW2009(BandwidthP2003(numObs), :stationary)
+BlockLengthPPW2009(numObs::Int, bootstrapMethod::Symbol) = BlockLengthPPW2009(BandwidthP2003(numObs), bootstrapMethod)
+BlockLengthPPW2009(bandwidthMethod::BandwidthMethod) = BlockLengthPPW2009(bandwidthMethod, :stationary)
 #Block length detection procedure of Paparoditis, Politis (2002) [NOTE: ONLY FOR TAPERED BLOCK BOOTSTRAP]
 type BlockLengthPP2002 <: BlockLengthMethod
 	bandwidthMethod::BandwidthMethod
@@ -240,7 +240,7 @@ end
 #show wrapper for STDOUT
 show(b::BlockLengthMethod) = show(STDOUT, b)
 #toBlockLengthMethod: This function is used to convert string representations of block length methods into <: BlockLengthMethod
-function update!(bm::BlockLengthPPW2009, bandwidthMethod::BandwidthMethod, bootstrapMethod::ASCIIString)
+function update!(bm::BlockLengthPPW2009, bandwidthMethod::BandwidthMethod, bootstrapMethod::Symbol)
 	bm.bandwidthMethod = bandwidthMethod
 	bm.bootstrapMethod = bootstrapMethod
 	return(true)
@@ -286,9 +286,9 @@ type BootstrapParam
 	numResample::Int #Number of resamples
 	bootstrapMethod::BootstrapMethod #Bootstrap method to use
 	blockLengthMethod::BlockLengthMethod #Method to use to detect block length (only applies if current block length is non-positive)
-	statistic::Union(Function, ASCIIString) #Statistic of interest
-	distributionParam::Union(Function, ASCIIString) #Parameter of distribution of statistic of interest
-	function BootstrapParam(numObsData::Int, numObsResample::Int, numResample::Int, bootstrapMethod::BootstrapMethod, blockLengthMethod::BlockLengthMethod, statistic::Union(Function, ASCIIString), distributionParam::Union(Function, ASCIIString))
+	statistic::Function #Statistic of interest
+	distributionParam::Function #Parameter of distribution of statistic of interest
+	function BootstrapParam(numObsData::Int, numObsResample::Int, numResample::Int, bootstrapMethod::BootstrapMethod, blockLengthMethod::BlockLengthMethod, statistic::Function, distributionParam::Function)
 		numObsData < 1 && error("Number of observations in dataset must be greater than zero to apply a bootstrap")
 		numObsResample < 1 && error("Number of observations per resample must be greater than zero")
 		numResample < 1 && error("Number of resamples to bootstrap must be greater than zero")
@@ -305,9 +305,9 @@ function BootstrapParam(numObsData::Int; numObsResample::Int=numObsData, numResa
 		update!(bootstrapMethod, blockLength)
 	else
 		if typeof(blockLengthMethod) == BlockLength_Dummy #We need to automatically decide a block-length procedure
-			if typeof(bootstrapMethod) == BootstrapStationary; blockLengthMethod = BlockLengthPPW2009(BandwidthP2003(numObsData), "stationary")
-			elseif typeof(bootstrapMethod) == BootstrapCircularBlock; blockLengthMethod = BlockLengthPPW2009(BandwidthP2003(numObsData), "circularBlock")
-			elseif typeof(bootstrapMethod) == BootstrapMovingBlock; blockLengthMethod = BlockLengthPPW2009(BandwidthP2003(numObsData), "movingBlock")
+			if typeof(bootstrapMethod) == BootstrapStationary; blockLengthMethod = BlockLengthPPW2009(BandwidthP2003(numObsData), :stationary)
+			elseif typeof(bootstrapMethod) == BootstrapCircularBlock; blockLengthMethod = BlockLengthPPW2009(BandwidthP2003(numObsData), :circularBlock)
+			elseif typeof(bootstrapMethod) == BootstrapMovingBlock; blockLengthMethod = BlockLengthPPW2009(BandwidthP2003(numObsData), :movingBlock)
 			elseif typeof(bootstrapMethod) == BootstrapTaperedBlock; blockLengthMethod = BlockLengthPP2002(BandwidthP2003(numObsData), KernelPP2002Trap())
 			else; error("Automatic blockLengthMethod selection not possible for chosen bootstrapMethod. Please explicitly specify either a blockLength or blockLengthMethod.")
 			end
@@ -346,8 +346,8 @@ function update!(bp::BootstrapParam; numObsData::Int=-999, numObsResample::Int=-
 	numObsData != -999 && (bp.numObsData = numObsData)
 	numObsResample != -999 && (bp.numObsResample = numObsResample)
 	numResample != -999 && (bp.numResample = numResample)
-	typeof(bootstrapMethod) != Bootstrap_Dummy && bp.bootstrapMethod = bootstrapMethod
-	typeof(blockLengthMethod) != BlockLength_Dummy && bp.blockLengthMethod = blockLengthMethod
+	typeof(bootstrapMethod) != Bootstrap_Dummy && (bp.bootstrapMethod = bootstrapMethod)
+	typeof(blockLengthMethod) != BlockLength_Dummy && (bp.blockLengthMethod = blockLengthMethod)
 	statistic != bootstrap_dummy_func && (bp.statistic = statistic)
 	distributionParam != bootstrap_dummy_func && (bp.distributionParam = distributionParam)
 	return(bp)
@@ -370,7 +370,7 @@ bootstrap_dummy_func() = true #Don't delete this. It is used as a default input 
 #NOTES
 #----------------------------------------------------------
 #Block length selection method of Patton, Politis, White (2009) "Correction to Automatic Block Length Selection For the Dependent Bootstrap"
-function dbootstrapblocklength{T<:Number}(x::Vector{T}, bm::BlockLengthPPW2009)
+function dbootstrapblocklength{T<:Number}(x::AbstractVector{T}, bm::BlockLengthPPW2009)
 	length(x) < 3 && error("You must have at least 3 observations to estimate block length")
 	(M, xVar, covVec) = dbootstrapblocklength_MAndCorVec(x, bm)
 	kernelCovVec = dbootstrapblocklength_KernelCovVec(covVec, KernelP2003FlatTop(), M)
@@ -378,9 +378,9 @@ function dbootstrapblocklength{T<:Number}(x::Vector{T}, bm::BlockLengthPPW2009)
 	for k = 1:M
 		gHat += 2 * k * kernelCovVec[k] #note, "2*" is because sum is from -M and M, but is symmetric about 0. Note, 0 term in sum vanishes since k=0 -> |k|=0
 	end
-	if bm.bootstrapMethod == "stationary"
+	if bm.bootstrapMethod == :stationary
 		dHat = 2 * (xVar + 2*sum(kernelCovVec))^2 #note, in expression (1 + 2*sum(kernelCovVec)), "2*" is because sum is from -M to M, but is symmetric around 0. "1+" is the zero term of the sum which is simply equal to unity.
-	elseif bm.bootstrapMethod == "circularBlock" || bm.bootstrapMethod == "movingBlock"
+	elseif bm.bootstrapMethod == :circularBlock || bm.bootstrapMethod == :movingBlock
 		dHat = (4/3) * (xVar + 2*sum(kernelCovVec))^2 #note, in expression (1 + 2*sum(kernelCovVec)), "2*" is because sum is from -M to M, but is symmetric around 0. "1+" is the zero term of the sum which is simply equal to unity.
 	else
 		error("Optimal block length given BlockLengthPPW2009 method is only known for stationary, circular, or moving block bootstraps")
@@ -390,7 +390,7 @@ function dbootstrapblocklength{T<:Number}(x::Vector{T}, bm::BlockLengthPPW2009)
 	return(blockLength) #Equation 9 and 14 from Politis, White (2004)
 end
 #Block length selection method of Paparoditis, Politis (2002) "The Tapered Block Bootstrap for General Statistics From Stationary Sequences"
-function dbootstrapblocklength{T<:Number}(x::Vector{T}, bm::BlockLengthPP2002)
+function dbootstrapblocklength{T<:Number}(x::AbstractVector{T}, bm::BlockLengthPP2002)
 	length(x) < 3 && error("You must have at least 3 observations to estimate block length")
 	(M, xVar, covVec) = dbootstrapblocklength_MAndCorVec(x, bm)
 	kernelCovVec = dbootstrapblocklength_KernelCovVec(covVec, KernelP2003FlatTop(), M)
@@ -413,7 +413,7 @@ function dbootstrapblocklength{T<:Number}(x::Vector{T}, bm::BlockLengthPP2002)
 	return(blockLength) #Equation 20 from Paraproditis, Politis (2002)
 end
 #Non-exported helper functions
-function dbootstrapblocklength_MAndCorVec{T<:Number}(x::Vector{T}, bm::BlockLengthMethod)
+function dbootstrapblocklength_MAndCorVec{T<:Number}(x::AbstractVector{T}, bm::BlockLengthMethod)
 	!(typeof(bm) == BlockLengthPPW2009 || typeof(bm) == BlockLengthPP2002) && error("This non-exported function is not defined for the input block length method type")
 	(M, xVar, covVec) = bandwidth(x, bm.bandwidthMethod)
 	if M > 0.5 * length(x)
@@ -424,28 +424,28 @@ function dbootstrapblocklength_MAndCorVec{T<:Number}(x::Vector{T}, bm::BlockLeng
 	length(covVec) < M && append!(covVec, autocov(x, length(covVec)+1:M)) #Get any additional autocovariances that we might need
 	return(M, xVar, covVec)
 end
-function dbootstrapblocklength_KernelCovVec(covVec::Vector{Float64}, kF::KernelFunction, M::Int)
+function dbootstrapblocklength_KernelCovVec(covVec::AbstractVector{Float64}, kF::KernelFunction, M::Int)
 	length(covVec) < M && error("Logic fail in module. It should have been impossible for length(covVec) < M")
 	kernelCovVec [ evaluate(k / M, kF) * covVec[k] for k = 1:M ]
 	return(kernelCovVec)
 end
 #Keyword wrapper
-function dbootstrapblocklength{T<:Number}(x::Vector{T}; blockLengthMethod::BlockLengthMethod=BlockLengthPPW2009(), bandwidthMethod::BandwidthMethod=BandwidthP2003())
+function dbootstrapblocklength{T<:Number}(x::AbstractVector{T}; blockLengthMethod::BlockLengthMethod=BlockLengthPPW2009(), bandwidthMethod::BandwidthMethod=BandwidthP2003())
 	update!(blockLengthMethod, bandwidthMethod)
 	return(dbootstrapblocklength(x, blockLengthMethod))
 end
 #Wrapper methods
-function dbootstrapblocklength{T<:Number}(x::Vector{T}, bp::BootstrapParam)
+function dbootstrapblocklength{T<:Number}(x::AbstractVector{T}, bp::BootstrapParam)
 	getblocklength(bp) > 0 && error("Your block length is already > 0. Either reset block length to < 0 or else use a different method of this function")
 	return(dbootstrapblocklength(x, bp.blockLengthMethod))
 end
-dbootstrapblocklength{T<:Number}(bp::BootstrapParam, x::Vector{T}) = dbootstrapblocklength(x, bp)
+dbootstrapblocklength{T<:Number}(bp::BootstrapParam, x::AbstractVector{T}) = dbootstrapblocklength(x, bp)
 #In-place update of BootstrapParam version of function
-function dbootstrapblocklength!{T<:Number}(x::Vector{T}, bp::BootstrapParam)
+function dbootstrapblocklength!{T<:Number}(x::AbstractVector{T}, bp::BootstrapParam)
 	getblocklength(bp) > 0 && error("Your block length is already > 0. Either reset block length to < 0 or else use a different method of this function")
 	update!(bp.bootstrapMethod, dbootstrapblocklength(x, bp.blockLengthMethod))
 end
-dbootstrapblocklength!{T<:Number}(bp::BootstrapParam, x::Vector{T}) = dbootstrapblocklength!(x, bp)
+dbootstrapblocklength!{T<:Number}(bp::BootstrapParam, x::AbstractVector{T}) = dbootstrapblocklength!(x, bp)
 
 
 
@@ -579,12 +579,12 @@ function dbootstrapindex(numObsData::Int, blockLength::Number; bootstrapMethod::
 	return(dbootstrapindex(bootstrapMethod, numObsData, numObsResample, numResample))
 end
 #Keyword wrapper with data provided (let BootstrapParam constructor do the work)
-function dbootstrapindex{T<:Number}(x::Vector{T}; blockLength::Number=-1, bootstrapMethod::BootstrapMethod=BootstrapStationary(), numObsResample::Int=numObsData, numResample::Int=defaultNumResample)
+function dbootstrapindex{T<:Number}(x::AbstractVector{T}; blockLength::Number=-1, bootstrapMethod::BootstrapMethod=BootstrapStationary(), numObsResample::Int=numObsData, numResample::Int=defaultNumResample)
 	bp = BootstrapParam(x, blockLength=blockLength, bootstrapMethod=bootstrapMethod, numObsResample=numObsResample, numResample=numResample)
 	return(dbootstrapindex(bp))
 end
 #Wrappers that update a BootstrapParam with block length in-place (but only if block length is non-positive)
-function dbootstrapindex!{T<:Number}(x::Vector{T}, bp::BootstrapParam)
+function dbootstrapindex!{T<:Number}(x::AbstractVector{T}, bp::BootstrapParam)
 	getblocklength(bp) <= 0 && update!(bp.bootstrapMethod, dbootstrapblocklength(x, bp))
 	return(dbootstrapindex(bp))
 end
@@ -638,7 +638,7 @@ end
 #NOTES
 #	The statistic the user is bootstrapping is irrelevant to this function
 #----------------------------------------------------------
-function dbootstrapdata!{T<:Number}(x::Vector{T}, bp::BootstrapParam)
+function dbootstrapdata!{T<:Number}(x::AbstractVector{T}, bp::BootstrapParam)
 	if typeof(bp.bootstrapMethod) == BootstrapTaperedBlock #Check to make sure tapered block bootstrap is being used correctly
 		abs(mean(x)) > 1e-10 && error("Data must be de-meaned if bootstrap method is tapered block")
 	end
@@ -649,11 +649,11 @@ function dbootstrapdata!{T<:Number}(x::Vector{T}, bp::BootstrapParam)
 	typeof(bp.bootstrapMethod) == BootstrapTaperedBlock && 	dbootstrapweight!(xBoot, bp.bootstrapMethod) #tapered block requires weighting
 	return(xBoot)
 end
-dbootstrapdata!{T<:Number}(bp::BootstrapParam, x::Vector{T}) = dbootstrapdata!(x, bp)
-dbootstrapdata{T<:Number}(x::Vector{T}, bp::BootstrapParam) = dbootstrapdata!(x, deepcopy(bp))
-dbootstrapdata{T<:Number}(bp::BootstrapParam, x::Vector{T}) = dbootstrapdata(x, bp)
+dbootstrapdata!{T<:Number}(bp::BootstrapParam, x::AbstractVector{T}) = dbootstrapdata!(x, bp)
+dbootstrapdata{T<:Number}(x::AbstractVector{T}, bp::BootstrapParam) = dbootstrapdata!(x, deepcopy(bp))
+dbootstrapdata{T<:Number}(bp::BootstrapParam, x::AbstractVector{T}) = dbootstrapdata(x, bp)
 #Keyword argument wrapper
-dbootstrapdata{T<:Number}(x::Vector{T}; numObsResample::Int=length(x), numResample::Int=defaultNumResample, bootstrapMethod::BootstrapMethod=BootstrapStationary(), blockLengthMethod::BlockLengthMethod=BlockLength_Dummy(), blockLength::Number=-1) = dbootstrapdata(x, BootstrapParam(x, numObsResample=numObsResample, numResample=numResample, bootstrapMethod=bootstrapMethod, blockLengthMethod=blockLengthMethod, blockLength=blockLength))
+dbootstrapdata{T<:Number}(x::AbstractVector{T}; numObsResample::Int=length(x), numResample::Int=defaultNumResample, bootstrapMethod::BootstrapMethod=BootstrapStationary(), blockLengthMethod::BlockLengthMethod=BlockLength_Dummy(), blockLength::Number=-1) = dbootstrapdata(x, BootstrapParam(x, numObsResample=numObsResample, numResample=numResample, bootstrapMethod=bootstrapMethod, blockLengthMethod=blockLengthMethod, blockLength=blockLength))
 
 
 
@@ -666,12 +666,12 @@ dbootstrapdata{T<:Number}(x::Vector{T}; numObsResample::Int=length(x), numResamp
 #PURPOSE
 #	The purpose of this function is to build a vector of bootstrapped values of the statistic of interest (expressed as Vector{Float64})
 #----------------------------------------------------------
-dbootstrapstatistic!{T<:Number}(x::Vector{T}, bp::BootstrapParam) = dbootstrapstatistic_getstatistic(dbootstrapdata!(x, bp))
-dbootstrapstatistic!{T<:Number}(bp::BootstrapParam, x::Vector{T}) = dbootstrapstatistic!(x, bp)
-dbootstrapstatistic{T<:Number}(x::Vector{T}, bp::BootstrapParam) = dbootstrapstatistic_getstatistic(dbootstrapdata(x, bp))
-dbootstrapstatistic{T<:Number}(bp::BootstrapParam, x::Vector{T}) = dbootstrapstatistic(x, bp)
+dbootstrapstatistic!{T<:Number}(x::AbstractVector{T}, bp::BootstrapParam) = dbootstrapstatistic_getstatistic(dbootstrapdata!(x, bp))
+dbootstrapstatistic!{T<:Number}(bp::BootstrapParam, x::AbstractVector{T}) = dbootstrapstatistic!(x, bp)
+dbootstrapstatistic{T<:Number}(x::AbstractVector{T}, bp::BootstrapParam) = dbootstrapstatistic_getstatistic(dbootstrapdata(x, bp))
+dbootstrapstatistic{T<:Number}(bp::BootstrapParam, x::AbstractVector{T}) = dbootstrapstatistic(x, bp)
 #Keyword argument wrapper
-dbootstrapstatistic{T<:Number}(x::Vector{T}; numObsResample::Int=length(x), numResample::Int=defaultNumResample, bootstrapMethod::BootstrapMethod=BootstrapStationary(), blockLengthMethod::BlockLengthMethod=BlockLength_Dummy(), blockLength::Number=-1, statistic::Function=mean) = dbootstrapstatistic(x, BootstrapParam(x, numObsResample=numObsResample, numResample=numResample, bootstrapMethod=bootstrapMethod, blockLengthMethod=blockLengthMethod, blockLength=blockLength, statistic=statistic))
+dbootstrapstatistic{T<:Number}(x::AbstractVector{T}; numObsResample::Int=length(x), numResample::Int=defaultNumResample, bootstrapMethod::BootstrapMethod=BootstrapStationary(), blockLengthMethod::BlockLengthMethod=BlockLength_Dummy(), blockLength::Number=-1, statistic::Function=mean) = dbootstrapstatistic(x, BootstrapParam(x, numObsResample=numObsResample, numResample=numResample, bootstrapMethod=bootstrapMethod, blockLengthMethod=blockLengthMethod, blockLength=blockLength, statistic=statistic))
 #Non-exported function used exclusively by dbootstrapstatistic to compute the actual statistics
 function dbootstrapstatistic_getstatistic{T<:Number}(d::Matrix{T}, bp::BootstrapParam)
 	if typeof(bp.bootstrapMethod) == BootstrapTaperedBlock
@@ -684,14 +684,14 @@ function dbootstrapstatistic_getstatistic{T<:Number}(d::Matrix{T}, bp::Bootstrap
 	elseif bp.statistic == var; statVec = [ convert(Float64, var(sub(d, 1:N, m))) for m = 1:size(d, 2) ]
 	elseif bp.statistic == std; statVec = [ convert(Float64, std(sub(d, 1:N, m))) for m = 1:size(d, 2) ]
 	elseif bp.statistic == sum; statVec = [ convert(Float64, sum(sub(d, 1:N, m))) for m = 1:size(d, 2) ]
-	elseif bp.statistic == DependentBootstrap.quantile_001; statVec = [ convert(Float64, quantile(sub(d, 1:N, m), 0.001)) for m = 1:size(d, 2) ]
-	elseif bp.statistic == DependentBootstrap.quantile_01; statVec = [ convert(Float64, quantile(sub(d, 1:N, m), 0.01)) for m = 1:size(d, 2) ]
-	elseif bp.statistic == DependentBootstrap.quantile_05; statVec = [ convert(Float64, quantile(sub(d, 1:N, m), 0.05)) for m = 1:size(d, 2) ]
-	elseif bp.statistic == DependentBootstrap.quantile_1; statVec = [ convert(Float64, quantile(sub(d, 1:N, m), 0.1)) for m = 1:size(d, 2) ]
-	elseif bp.statistic == DependentBootstrap.quantile_9; statVec = [ convert(Float64, quantile(sub(d, 1:N, m), 0.9)) for m = 1:size(d, 2) ]
-	elseif bp.statistic == DependentBootstrap.quantile_95; statVec = [ convert(Float64, quantile(sub(d, 1:N, m), 0.95)) for m = 1:size(d, 2) ]
-	elseif bp.statistic == DependentBootstrap.quantile_99; statVec = [ convert(Float64, quantile(sub(d, 1:N, m), 0.99)) for m = 1:size(d, 2) ]
-	elseif bp.statistic == DependentBootstrap.quantile_999; statVec = [ convert(Float64, quantile(sub(d, 1:N, m), 0.999)) for m = 1:size(d, 2) ]
+	elseif bp.statistic == quantile_001; statVec = [ convert(Float64, quantile(sub(d, 1:N, m), 0.001)) for m = 1:size(d, 2) ]
+	elseif bp.statistic == quantile_01; statVec = [ convert(Float64, quantile(sub(d, 1:N, m), 0.01)) for m = 1:size(d, 2) ]
+	elseif bp.statistic == quantile_05; statVec = [ convert(Float64, quantile(sub(d, 1:N, m), 0.05)) for m = 1:size(d, 2) ]
+	elseif bp.statistic == quantile_1; statVec = [ convert(Float64, quantile(sub(d, 1:N, m), 0.1)) for m = 1:size(d, 2) ]
+	elseif bp.statistic == quantile_9; statVec = [ convert(Float64, quantile(sub(d, 1:N, m), 0.9)) for m = 1:size(d, 2) ]
+	elseif bp.statistic == quantile_95; statVec = [ convert(Float64, quantile(sub(d, 1:N, m), 0.95)) for m = 1:size(d, 2) ]
+	elseif bp.statistic == quantile_99; statVec = [ convert(Float64, quantile(sub(d, 1:N, m), 0.99)) for m = 1:size(d, 2) ]
+	elseif bp.statistic == quantile_999; statVec = [ convert(Float64, quantile(sub(d, 1:N, m), 0.999)) for m = 1:size(d, 2) ]
 	else
 		#If we reach this point, bp.statistic is not a recognized function and so we have to put up with the performance overhead
 		statVec = [ convert(Float64, bp.statistic(sub(d, 1:N, m))) for m = 1:size(d, 2) ]
@@ -699,14 +699,14 @@ function dbootstrapstatistic_getstatistic{T<:Number}(d::Matrix{T}, bp::Bootstrap
 	return(statVec)
 end
 #We define each of the above quantile functions locally. Note, these functions don't actually get called. I prefer to let the official quantile function handle sub-array case
-DependentBootstrap.quantile_001{T<:Number}(x::Vector{T}) = quantile(x, 0.001)
-DependentBootstrap.quantile_01{T<:Number}(x::Vector{T}) = quantile(x, 0.01)
-DependentBootstrap.quantile_05{T<:Number}(x::Vector{T}) = quantile(x, 0.05)
-DependentBootstrap.quantile_1{T<:Number}(x::Vector{T}) = quantile(x, 0.1)
-DependentBootstrap.quantile_9{T<:Number}(x::Vector{T}) = quantile(x, 0.9)
-DependentBootstrap.quantile_95{T<:Number}(x::Vector{T}) = quantile(x, 0.95)
-DependentBootstrap.quantile_99{T<:Number}(x::Vector{T}) = quantile(x, 0.99)
-DependentBootstrap.quantile_999{T<:Number}(x::Vector{T}) = quantile(x, 0.999)
+quantile_001{T<:Number}(x::AbstractVector{T}) = quantile(x, 0.001)
+quantile_01{T<:Number}(x::AbstractVector{T}) = quantile(x, 0.01)
+quantile_05{T<:Number}(x::AbstractVector{T}) = quantile(x, 0.05)
+quantile_1{T<:Number}(x::AbstractVector{T}) = quantile(x, 0.1)
+quantile_9{T<:Number}(x::AbstractVector{T}) = quantile(x, 0.9)
+quantile_95{T<:Number}(x::AbstractVector{T}) = quantile(x, 0.95)
+quantile_99{T<:Number}(x::AbstractVector{T}) = quantile(x, 0.99)
+quantile_999{T<:Number}(x::AbstractVector{T}) = quantile(x, 0.999)
 
 
 
@@ -721,39 +721,39 @@ DependentBootstrap.quantile_999{T<:Number}(x::Vector{T}) = quantile(x, 0.999)
 #	Versions of this function for specific, popular parameters of interest that will be type-stable are below
 #----------------------------------------------------------
 #Function to return bootstrapped parameter. Function is not type stable, hence it farms most of the work out to other functions
-dbootstrap!{T<:Number}(x::Vector{T}, bp::BootstrapParam) = dbootstrap_getdistributionparam(dbootstrapstatistic!(x, bp))
-dbootstrap!{T<:Number}(bp::BootstrapParam, x::Vector{T}) = dbootstrap!(x, bp)
-dbootstrap{T<:Number}(x::Vector{T}, bp::BootstrapParam) = dbootstrap_getdistributionparam(dbootstrapstatistic(x, bp))
-dbootstrap{T<:Number}(bp::BootstrapParam, x::Vector{T}) = dbootstrap(x, bp)
+dbootstrap!{T<:Number}(x::AbstractVector{T}, bp::BootstrapParam) = dbootstrap_getdistributionparam(dbootstrapstatistic!(x, bp))
+dbootstrap!{T<:Number}(bp::BootstrapParam, x::AbstractVector{T}) = dbootstrap!(x, bp)
+dbootstrap{T<:Number}(x::AbstractVector{T}, bp::BootstrapParam) = dbootstrap_getdistributionparam(dbootstrapstatistic(x, bp))
+dbootstrap{T<:Number}(bp::BootstrapParam, x::AbstractVector{T}) = dbootstrap(x, bp)
 #Keyword argument wrapper
-dbootstrap{T<:Number}(x::Vector{T}; numObsResample::Int=length(x), numResample::Int=defaultNumResample, bootstrapMethod::BootstrapMethod=BootstrapStationary(), blockLengthMethod::BlockLengthMethod=BlockLength_Dummy(), blockLength::Number=-1, statistic::Function=mean, distributionParam::Function=var) = dbootstrapstatistic(x, BootstrapParam(x, numObsResample=numObsResample, numResample=numResample, bootstrapMethod=bootstrapMethod, blockLengthMethod=blockLengthMethod, blockLength=blockLength, statistic=statistic, distributionParam=distributionParam))
+dbootstrap{T<:Number}(x::AbstractVector{T}; numObsResample::Int=length(x), numResample::Int=defaultNumResample, bootstrapMethod::BootstrapMethod=BootstrapStationary(), blockLengthMethod::BlockLengthMethod=BlockLength_Dummy(), blockLength::Number=-1, statistic::Function=mean, distributionParam::Function=var) = dbootstrapstatistic(x, BootstrapParam(x, numObsResample=numObsResample, numResample=numResample, bootstrapMethod=bootstrapMethod, blockLengthMethod=blockLengthMethod, blockLength=blockLength, statistic=statistic, distributionParam=distributionParam))
 #Non-exported function used exclusively by dbootstrap to compute the distribution parameter (I've made this a separate function as I might make it more complicated in the future)
-dbootstrap_getdistributionparam{T<:Number}(x::Vector{T}, bp::BootstrapParam) = bp.distributionParam(x)
+dbootstrap_getdistributionparam{T<:Number}(x::AbstractVector{T}, bp::BootstrapParam) = bp.distributionParam(x)
 
 
 
 #The following functions are dedicated type-stable versions of dbootstrap for specific distribution parameters.
-dbootstrap_mean(x::Vector{T}, bp::BootstrapParam) = mean(dbootstrapstatistic(x, bp))
-dbootstrap_mean!(x::Vector{T}, bp::BootstrapParam) = mean(dbootstrapstatistic!(x, bp))
-dbootstrap_mean(x::Vector{T}; numObsResample::Int=length(x), numResample::Int=defaultNumResample, bootstrapMethod::BootstrapMethod=BootstrapStationary(), blockLengthMethod::BlockLengthMethod=BlockLength_Dummy(), blockLength::Number=-1, statistic::Function=mean) = dbootstrap_mean(x, BootstrapParam(x, numObsResample=numObsResample, numResample=numResample, bootstrapMethod=bootstrapMethod, blockLengthMethod=blockLengthMethod, blockLength=blockLength, statistic=statistic))
-dbootstrap_median(x::Vector{T}, bp::BootstrapParam) = median(dbootstrapstatistic(x, bp))
-dbootstrap_median!(x::Vector{T}, bp::BootstrapParam) = median(dbootstrapstatistic!(x, bp))
-dbootstrap_median(x::Vector{T}; numObsResample::Int=length(x), numResample::Int=defaultNumResample, bootstrapMethod::BootstrapMethod=BootstrapStationary(), blockLengthMethod::BlockLengthMethod=BlockLength_Dummy(), blockLength::Number=-1, statistic::Function=mean) = dbootstrap_median(x, BootstrapParam(x, numObsResample=numObsResample, numResample=numResample, bootstrapMethod=bootstrapMethod, blockLengthMethod=blockLengthMethod, blockLength=blockLength, statistic=statistic))
-dbootstrap_var(x::Vector{T}, bp::BootstrapParam) = var(dbootstrapstatistic(x, bp))
-dbootstrap_var!(x::Vector{T}, bp::BootstrapParam) = var(dbootstrapstatistic!(x, bp))
-dbootstrap_var(x::Vector{T}; numObsResample::Int=length(x), numResample::Int=defaultNumResample, bootstrapMethod::BootstrapMethod=BootstrapStationary(), blockLengthMethod::BlockLengthMethod=BlockLength_Dummy(), blockLength::Number=-1, statistic::Function=mean) = dbootstrap_var(x, BootstrapParam(x, numObsResample=numObsResample, numResample=numResample, bootstrapMethod=bootstrapMethod, blockLengthMethod=blockLengthMethod, blockLength=blockLength, statistic=statistic))
-dbootstrap_std(x::Vector{T}, bp::BootstrapParam) = std(dbootstrapstatistic(x, bp))
-dbootstrap_std!(x::Vector{T}, bp::BootstrapParam) = std(dbootstrapstatistic!(x, bp))
-dbootstrap_std(x::Vector{T}; numObsResample::Int=length(x), numResample::Int=defaultNumResample, bootstrapMethod::BootstrapMethod=BootstrapStationary(), blockLengthMethod::BlockLengthMethod=BlockLength_Dummy(), blockLength::Number=-1, statistic::Function=mean) = dbootstrap_std(x, BootstrapParam(x, numObsResample=numObsResample, numResample=numResample, bootstrapMethod=bootstrapMethod, blockLengthMethod=blockLengthMethod, blockLength=blockLength, statistic=statistic))
-dbootstrap_quantile(x::Vector{T}, bp::BootstrapParam, p::Float64=0.95) = quantile(dbootstrapstatistic(x, bp), p)
-dbootstrap_quantile!(x::Vector{T}, bp::BootstrapParam, p::Float64=0.95) = quantile(dbootstrapstatistic!(x, bp), p)
-dbootstrap_quantile(x::Vector{T}, p::Float64=0.95; numObsResample::Int=length(x), numResample::Int=defaultNumResample, bootstrapMethod::BootstrapMethod=BootstrapStationary(), blockLengthMethod::BlockLengthMethod=BlockLength_Dummy(), blockLength::Number=-1, statistic::Function=mean) = dbootstrap_quantile(x, BootstrapParam(x, numObsResample=numObsResample, numResample=numResample, bootstrapMethod=bootstrapMethod, blockLengthMethod=blockLengthMethod, blockLength=blockLength, statistic=statistic), p)
-dbootstrap_quantile(x::Vector{T}, bp::BootstrapParam, p::Vector{Float64}=[0.025, 0.975]) = quantile(dbootstrapstatistic(x, bp), p)
-dbootstrap_quantile!(x::Vector{T}, bp::BootstrapParam, p::Vector{Float64}=[0.025, 0.975]) = quantile(dbootstrapstatistic!(x, bp), p)
-dbootstrap_quantile(x::Vector{T}, p::Vector{Float64}=[0.025, 0.975]; numObsResample::Int=length(x), numResample::Int=defaultNumResample, bootstrapMethod::BootstrapMethod=BootstrapStationary(), blockLengthMethod::BlockLengthMethod=BlockLength_Dummy(), blockLength::Number=-1, statistic::Function=mean) = dbootstrap_quantile(x, BootstrapParam(x, numObsResample=numObsResample, numResample=numResample, bootstrapMethod=bootstrapMethod, blockLengthMethod=blockLengthMethod, blockLength=blockLength, statistic=statistic), p)
-dbootstrap_conf(x::Vector{T}, bp::BootstrapParam, p::Vector{Float64}=[0.025, 0.975]) = length(p) != 2 ? error("Confidence interval must have exactly two probability inputs") : quantile(dbootstrapstatistic(x, bp), p)
-dbootstrap_conf!(x::Vector{T}, bp::BootstrapParam, p::Vector{Float64}=[0.025, 0.975]) = length(p) != 2 ? error("Confidence interval must have exactly two probability inputs") : quantile(dbootstrapstatistic!(x, bp), p)
-dbootstrap_conf(x::Vector{T}, p::Vector{Float64}=[0.025, 0.975]; numObsResample::Int=length(x), numResample::Int=defaultNumResample, bootstrapMethod::BootstrapMethod=BootstrapStationary(), blockLengthMethod::BlockLengthMethod=BlockLength_Dummy(), blockLength::Number=-1, statistic::Function=mean) = dbootstrap_conf(x, BootstrapParam(x, numObsResample=numObsResample, numResample=numResample, bootstrapMethod=bootstrapMethod, blockLengthMethod=blockLengthMethod, blockLength=blockLength, statistic=statistic), p)
+dbootstrap_mean{T<:Number}(x::AbstractVector{T}, bp::BootstrapParam) = mean(dbootstrapstatistic(x, bp))
+dbootstrap_mean!{T<:Number}(x::AbstractVector{T}, bp::BootstrapParam) = mean(dbootstrapstatistic!(x, bp))
+dbootstrap_mean{T<:Number}(x::AbstractVector{T}; numObsResample::Int=length(x), numResample::Int=defaultNumResample, bootstrapMethod::BootstrapMethod=BootstrapStationary(), blockLengthMethod::BlockLengthMethod=BlockLength_Dummy(), blockLength::Number=-1, statistic::Function=mean) = dbootstrap_mean(x, BootstrapParam(x, numObsResample=numObsResample, numResample=numResample, bootstrapMethod=bootstrapMethod, blockLengthMethod=blockLengthMethod, blockLength=blockLength, statistic=statistic))
+dbootstrap_median{T<:Number}(x::AbstractVector{T}, bp::BootstrapParam) = median(dbootstrapstatistic(x, bp))
+dbootstrap_median!{T<:Number}(x::AbstractVector{T}, bp::BootstrapParam) = median(dbootstrapstatistic!(x, bp))
+dbootstrap_median{T<:Number}(x::AbstractVector{T}; numObsResample::Int=length(x), numResample::Int=defaultNumResample, bootstrapMethod::BootstrapMethod=BootstrapStationary(), blockLengthMethod::BlockLengthMethod=BlockLength_Dummy(), blockLength::Number=-1, statistic::Function=mean) = dbootstrap_median(x, BootstrapParam(x, numObsResample=numObsResample, numResample=numResample, bootstrapMethod=bootstrapMethod, blockLengthMethod=blockLengthMethod, blockLength=blockLength, statistic=statistic))
+dbootstrap_var{T<:Number}(x::AbstractVector{T}, bp::BootstrapParam) = var(dbootstrapstatistic(x, bp))
+dbootstrap_var!{T<:Number}(x::AbstractVector{T}, bp::BootstrapParam) = var(dbootstrapstatistic!(x, bp))
+dbootstrap_var{T<:Number}(x::AbstractVector{T}; numObsResample::Int=length(x), numResample::Int=defaultNumResample, bootstrapMethod::BootstrapMethod=BootstrapStationary(), blockLengthMethod::BlockLengthMethod=BlockLength_Dummy(), blockLength::Number=-1, statistic::Function=mean) = dbootstrap_var(x, BootstrapParam(x, numObsResample=numObsResample, numResample=numResample, bootstrapMethod=bootstrapMethod, blockLengthMethod=blockLengthMethod, blockLength=blockLength, statistic=statistic))
+dbootstrap_std{T<:Number}(x::AbstractVector{T}, bp::BootstrapParam) = std(dbootstrapstatistic(x, bp))
+dbootstrap_std!{T<:Number}(x::AbstractVector{T}, bp::BootstrapParam) = std(dbootstrapstatistic!(x, bp))
+dbootstrap_std{T<:Number}(x::AbstractVector{T}; numObsResample::Int=length(x), numResample::Int=defaultNumResample, bootstrapMethod::BootstrapMethod=BootstrapStationary(), blockLengthMethod::BlockLengthMethod=BlockLength_Dummy(), blockLength::Number=-1, statistic::Function=mean) = dbootstrap_std(x, BootstrapParam(x, numObsResample=numObsResample, numResample=numResample, bootstrapMethod=bootstrapMethod, blockLengthMethod=blockLengthMethod, blockLength=blockLength, statistic=statistic))
+dbootstrap_quantile{T<:Number}(x::AbstractVector{T}, bp::BootstrapParam, p::Float64=0.95) = quantile(dbootstrapstatistic(x, bp), p)
+dbootstrap_quantile!{T<:Number}(x::AbstractVector{T}, bp::BootstrapParam, p::Float64=0.95) = quantile(dbootstrapstatistic!(x, bp), p)
+dbootstrap_quantile{T<:Number}(x::AbstractVector{T}, p::Float64=0.95; numObsResample::Int=length(x), numResample::Int=defaultNumResample, bootstrapMethod::BootstrapMethod=BootstrapStationary(), blockLengthMethod::BlockLengthMethod=BlockLength_Dummy(), blockLength::Number=-1, statistic::Function=mean) = dbootstrap_quantile(x, BootstrapParam(x, numObsResample=numObsResample, numResample=numResample, bootstrapMethod=bootstrapMethod, blockLengthMethod=blockLengthMethod, blockLength=blockLength, statistic=statistic), p)
+dbootstrap_quantile{T<:Number}(x::AbstractVector{T}, bp::BootstrapParam, p::Vector{Float64}=[0.025, 0.975]) = quantile(dbootstrapstatistic(x, bp), p)
+dbootstrap_quantile!{T<:Number}(x::AbstractVector{T}, bp::BootstrapParam, p::Vector{Float64}=[0.025, 0.975]) = quantile(dbootstrapstatistic!(x, bp), p)
+dbootstrap_quantile{T<:Number}(x::AbstractVector{T}, p::Vector{Float64}=[0.025, 0.975]; numObsResample::Int=length(x), numResample::Int=defaultNumResample, bootstrapMethod::BootstrapMethod=BootstrapStationary(), blockLengthMethod::BlockLengthMethod=BlockLength_Dummy(), blockLength::Number=-1, statistic::Function=mean) = dbootstrap_quantile(x, BootstrapParam(x, numObsResample=numObsResample, numResample=numResample, bootstrapMethod=bootstrapMethod, blockLengthMethod=blockLengthMethod, blockLength=blockLength, statistic=statistic), p)
+dbootstrap_conf{T<:Number}(x::AbstractVector{T}, bp::BootstrapParam, p::Vector{Float64}=[0.025, 0.975]) = length(p) != 2 ? error("Confidence interval must have exactly two probability inputs") : quantile(dbootstrapstatistic(x, bp), p)
+dbootstrap_conf!{T<:Number}(x::AbstractVector{T}, bp::BootstrapParam, p::Vector{Float64}=[0.025, 0.975]) = length(p) != 2 ? error("Confidence interval must have exactly two probability inputs") : quantile(dbootstrapstatistic!(x, bp), p)
+dbootstrap_conf{T<:Number}(x::AbstractVector{T}, p::Vector{Float64}=[0.025, 0.975]; numObsResample::Int=length(x), numResample::Int=defaultNumResample, bootstrapMethod::BootstrapMethod=BootstrapStationary(), blockLengthMethod::BlockLengthMethod=BlockLength_Dummy(), blockLength::Number=-1, statistic::Function=mean) = dbootstrap_conf(x, BootstrapParam(x, numObsResample=numObsResample, numResample=numResample, bootstrapMethod=bootstrapMethod, blockLengthMethod=blockLengthMethod, blockLength=blockLength, statistic=statistic), p)
 
 
 
