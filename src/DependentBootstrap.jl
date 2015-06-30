@@ -426,7 +426,7 @@ function dbootstrapblocklength_MAndCorVec{T<:Number}(x::AbstractVector{T}, bm::B
 end
 function dbootstrapblocklength_KernelCovVec(covVec::AbstractVector{Float64}, kF::KernelFunction, M::Int)
 	length(covVec) < M && error("Logic fail in module. It should have been impossible for length(covVec) < M")
-	kernelCovVec [ evaluate(k / M, kF) * covVec[k] for k = 1:M ]
+	kernelCovVec = [ evaluate(k / M, kF) * covVec[k] for k = 1:M ]
 	return(kernelCovVec)
 end
 #Keyword wrapper
@@ -572,7 +572,7 @@ end
 #TaperedBlock just calls moving block for this function (since Tapered block applies weighting to data obtained using movingBlock boostrap)
 dbootstrapindex(bm::BootstrapTaperedBlock, numObsData::Int, numObsResample::Int, numResample::Int) = dbootstrapindex(BootstrapMovingBlock(bm.blockLength), numObsData, numObsResample, numResample)
 #BootstrapParam wrapper
-dboostrapindex(bp::BootstrapParam) = dbootstrapindex(bp.bootstrapMethod, bp.numObsData, bp.numObsResample, bp.numResample)
+dbootstrapindex(bp::BootstrapParam) = dbootstrapindex(bp.bootstrapMethod, bp.numObsData, bp.numObsResample, bp.numResample)
 #Keyword wrapper with block length provided
 function dbootstrapindex(numObsData::Int, blockLength::Number; bootstrapMethod::BootstrapMethod=BootstrapStationary(), numObsResample::Int=numObsData, numResample::Int=defaultNumResample)
 	update!(bootstrapMethod, blockLength)
@@ -666,9 +666,9 @@ dbootstrapdata{T<:Number}(x::AbstractVector{T}; numObsResample::Int=length(x), n
 #PURPOSE
 #	The purpose of this function is to build a vector of bootstrapped values of the statistic of interest (expressed as Vector{Float64})
 #----------------------------------------------------------
-dbootstrapstatistic!{T<:Number}(x::AbstractVector{T}, bp::BootstrapParam) = dbootstrapstatistic_getstatistic(dbootstrapdata!(x, bp))
+dbootstrapstatistic!{T<:Number}(x::AbstractVector{T}, bp::BootstrapParam) = dbootstrapstatistic_getstatistic(dbootstrapdata!(x, bp), bp)
 dbootstrapstatistic!{T<:Number}(bp::BootstrapParam, x::AbstractVector{T}) = dbootstrapstatistic!(x, bp)
-dbootstrapstatistic{T<:Number}(x::AbstractVector{T}, bp::BootstrapParam) = dbootstrapstatistic_getstatistic(dbootstrapdata(x, bp))
+dbootstrapstatistic{T<:Number}(x::AbstractVector{T}, bp::BootstrapParam) = dbootstrapstatistic_getstatistic(dbootstrapdata(x, bp), bp)
 dbootstrapstatistic{T<:Number}(bp::BootstrapParam, x::AbstractVector{T}) = dbootstrapstatistic(x, bp)
 #Keyword argument wrapper
 dbootstrapstatistic{T<:Number}(x::AbstractVector{T}; numObsResample::Int=length(x), numResample::Int=defaultNumResample, bootstrapMethod::BootstrapMethod=BootstrapStationary(), blockLengthMethod::BlockLengthMethod=BlockLength_Dummy(), blockLength::Number=-1, statistic::Function=mean) = dbootstrapstatistic(x, BootstrapParam(x, numObsResample=numObsResample, numResample=numResample, bootstrapMethod=bootstrapMethod, blockLengthMethod=blockLengthMethod, blockLength=blockLength, statistic=statistic))
