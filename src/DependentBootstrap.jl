@@ -164,19 +164,19 @@ function getblocklength(bm::BootstrapMethod)
 	return(convert(Float64, bm.blockLength))
 end
 #Update fields of a bootstrap method
-update!(bm::BootstrapIID, newBlockLength::Number) = true
-function update!(bm::BootstrapStationary, newBlockLength::Number)
-	bm.expectedBlockLength = convert(Float64, newBlockLength)
-	return(true)
+update!(bm::BootstrapIID; blockLength::Number=-999) = true
+function update!(bm::BootstrapStationary; blockLength::Number=-999)
+	blockLength != -999 && (bm.expectedBlockLength = convert(Float64, blockLength))
+	return(bm)
 end
-function update!{T<:Union(BootstrapMovingBlock, BootstrapCircularBlock, BootstrapNonoverlappingBlock, BootstrapTaperedBlock)}(bm::T, newBlockLength::Number)
-	bm.blockLength = convert(Int, newBlockLength)
-	return(true)
+function update!{T<:Union(BootstrapMovingBlock, BootstrapCircularBlock, BootstrapNonoverlappingBlock, BootstrapTaperedBlock)}(bm::T; blockLength::Number=-999)
+	blockLength != -999 && (bm.blockLength = convert(Int, blockLength))
+	return(bm)
 end
-function update!(bm::BootstrapTaperedBlock, newBlockLength::Number, kernelFunction::KernelFunction)
-	bm.blockLength = convert(Int, newBlockLength)
-	bm.kernelFunction = kernelFunction
-	return(true)
+function update!(bm::BootstrapTaperedBlock; blockLength::Number=-999, kernelFunction::KernelFunction=KernelDummy())
+	blockLength != -999 && (bm.blockLength = convert(Int, blockLength))
+	typeof(kernelFunction) != KernelDummy && (bm.kernelFunction = kernelFunction)
+	return(bm)
 end
 
 
@@ -240,15 +240,15 @@ end
 #show wrapper for STDOUT
 show(b::BlockLengthMethod) = show(STDOUT, b)
 #toBlockLengthMethod: This function is used to convert string representations of block length methods into <: BlockLengthMethod
-function update!(bm::BlockLengthPPW2009, bandwidthMethod::BandwidthMethod, bootstrapMethod::Symbol)
-	bm.bandwidthMethod = bandwidthMethod
-	bm.bootstrapMethod = bootstrapMethod
-	return(true)
+function update!(bm::BlockLengthPPW2009; bandwidthMethod::BandwidthMethod=BandwidthDummy(), bootstrapMethod::Symbol=:none)
+	typeof(bandwidthMethod) != BandwidthDummy && (bm.bandwidthMethod = bandwidthMethod)
+	bootstrapMethod != :none && (bm.bootstrapMethod = bootstrapMethod)
+	return(bm)
 end
-function update!(bm::BlockLengthPP2002, bandwidthMethod::BandwidthMethod, kernelFunction::KernelFunction)
-	bm.bandwidthMethod = bandwidthMethod
-	bm.kernelFunction = kernelFunction
-	return(true)
+function update!(bm::BlockLengthPP2002; bandwidthMethod::BandwidthMethod=BandwidthDummy(), kernelFunction::KernelFunction=KernelDummy())
+	typeof(bandwidthMethod) != BandwidthDummy && (bm.bandwidthMethod = bandwidthMethod)
+	typeof(kernelFunction) != KernelDummy && (bm.kernelFunction = kernelFunction)
+	return(bm)
 end
 
 
@@ -302,7 +302,7 @@ function BootstrapParam(numObsData::Int; numObsResample::Int=numObsData, numResa
 		blockLength <= 0 && error("blockLength keyword argument must be strictly positive")
 		typeof(blockLengthMethod) != BlockLength_Dummy && error("There is no need to specify a blockLengthMethod if you have already specified a block length")
 		blockLengthMethod = BlockLengthPPW2009(numObsData)
-		update!(bootstrapMethod, blockLength)
+		update!(bootstrapMethod, blockLength=blockLength)
 	else
 		if typeof(blockLengthMethod) == BlockLength_Dummy #We need to automatically decide a block-length procedure
 			if typeof(bootstrapMethod) == BootstrapStationary; blockLengthMethod = BlockLengthPPW2009(BandwidthP2003(numObsData), :stationary)
@@ -342,7 +342,7 @@ show(b::BootstrapParam) = show(STDOUT, b)
 #Retrieve the block length
 getblocklength(bp::BootstrapParam) = getblocklength(bp.bootstrapMethod)
 #Update specified fields with specified keyword arguments
-function update!(bp::BootstrapParam; numObsData::Int=-999, numObsResample::Int=-999, numResample::Int=-999, bootstrapMethod::BootstrapMethod=Bootstrap_Dummy(), blockLengthMethod::BlockLengthMethod=BlockLength_Dummy(), statistic::Function=bootstrap_dummy_func, distributionParam::Function=bootstrap_dummy_func)
+function update!(bp::BootstrapParam; numObsData::Int=-999, numObsResample::Int=-999, numResample::Int=-999, bootstrapMethod::BootstrapMethod=Bootstrap_Dummy(), blockLengthMethod::BlockLengthMethod=BlockLength_Dummy(), statistic::Function=bootstrap_dummy_func, distributionParam::Function=bootstrap_dummy_func, blockLength::Number=-999)
 	numObsData != -999 && (bp.numObsData = numObsData)
 	numObsResample != -999 && (bp.numObsResample = numObsResample)
 	numResample != -999 && (bp.numResample = numResample)
@@ -350,6 +350,7 @@ function update!(bp::BootstrapParam; numObsData::Int=-999, numObsResample::Int=-
 	typeof(blockLengthMethod) != BlockLength_Dummy && (bp.blockLengthMethod = blockLengthMethod)
 	statistic != bootstrap_dummy_func && (bp.statistic = statistic)
 	distributionParam != bootstrap_dummy_func && (bp.distributionParam = distributionParam)
+	blockLength != -999 && update!(bp.bootstrapMethod, blockLength=blockLength)
 	return(bp)
 end
 bootstrap_dummy_func() = true #Don't delete this. It is used as a default input to update!
@@ -431,7 +432,7 @@ function dbootstrapblocklength_KernelCovVec(covVec::AbstractVector{Float64}, kF:
 end
 #Keyword wrapper
 function dbootstrapblocklength{T<:Number}(x::AbstractVector{T}; blockLengthMethod::BlockLengthMethod=BlockLengthPPW2009(), bandwidthMethod::BandwidthMethod=BandwidthP2003())
-	update!(blockLengthMethod, bandwidthMethod)
+	update!(blockLengthMethod, bandwidthMethod=bandwidthMethod)
 	return(dbootstrapblocklength(x, blockLengthMethod))
 end
 #Wrapper methods
@@ -443,7 +444,7 @@ dbootstrapblocklength{T<:Number}(bp::BootstrapParam, x::AbstractVector{T}) = dbo
 #In-place update of BootstrapParam version of function
 function dbootstrapblocklength!{T<:Number}(x::AbstractVector{T}, bp::BootstrapParam)
 	getblocklength(bp) > 0 && error("Your block length is already > 0. Either reset block length to < 0 or else use a different method of this function")
-	update!(bp.bootstrapMethod, dbootstrapblocklength(x, bp.blockLengthMethod))
+	update!(bp.bootstrapMethod, blockLength=dbootstrapblocklength(x, bp.blockLengthMethod))
 end
 dbootstrapblocklength!{T<:Number}(bp::BootstrapParam, x::AbstractVector{T}) = dbootstrapblocklength!(x, bp)
 
@@ -575,7 +576,7 @@ dbootstrapindex(bm::BootstrapTaperedBlock, numObsData::Int, numObsResample::Int,
 dbootstrapindex(bp::BootstrapParam) = dbootstrapindex(bp.bootstrapMethod, bp.numObsData, bp.numObsResample, bp.numResample)
 #Keyword wrapper with block length provided
 function dbootstrapindex(numObsData::Int, blockLength::Number; bootstrapMethod::BootstrapMethod=BootstrapStationary(), numObsResample::Int=numObsData, numResample::Int=defaultNumResample)
-	update!(bootstrapMethod, blockLength)
+	update!(bootstrapMethod, blockLength=blockLength)
 	return(dbootstrapindex(bootstrapMethod, numObsData, numObsResample, numResample))
 end
 #Keyword wrapper with data provided (let BootstrapParam constructor do the work)
@@ -585,7 +586,7 @@ function dbootstrapindex{T<:Number}(x::AbstractVector{T}; blockLength::Number=-1
 end
 #Wrappers that update a BootstrapParam with block length in-place (but only if block length is non-positive)
 function dbootstrapindex!{T<:Number}(x::AbstractVector{T}, bp::BootstrapParam)
-	getblocklength(bp) <= 0 && update!(bp.bootstrapMethod, dbootstrapblocklength(x, bp))
+	getblocklength(bp) <= 0 && update!(bp.bootstrapMethod, blockLength=dbootstrapblocklength(x, bp))
 	return(dbootstrapindex(bp))
 end
 dbootstrapindex!{T<:Number}(bp::BootstrapParam, x::Vector{T}) = dbootstrapindex!(x, bp)
