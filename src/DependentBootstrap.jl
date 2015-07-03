@@ -120,20 +120,13 @@ BootstrapTaperedBlock() = BootstrapTaperedBlock(-1, KernelPP2002Trap())
 BootstrapTaperedBlock(blockLength::Int) = BootstrapTaperedBlock(blockLength, KernelPP2002Trap())
 BootstrapTaperedBlock(blockLength::Number) = BootstrapTaperedBlock(convert(Int, ceil(blockLength)), KernelPP2002Trap())
 #---- METHODS ----
-#copy, deepcopy
-copy(b::BootstrapIID) = BootstrapIID()
-copy(b::BootstrapStationary) = BootstrapStationary(copy(b.expectedBlockLength))
-copy(b::BootstrapMovingBlock) = BootstrapMovingBlock(copy(b.blockLength))
-copy(b::BootstrapCircularBlock) = BootstrapCircularBlock(copy(b.blockLength))
-copy(b::BootstrapNonoverlappingBlock) = BootstrapNonoverlappingBlock(copy(b.blockLength))
-copy(b::BootstrapTaperedBlock) = BootstrapTaperedBlock(copy(b.blockLength), copy(b.kernelFunction))
-deepcopy(b::BootstrapIID) = BootstrapIID()
-deepcopy(b::BootstrapStationary) = BootstrapStationary(deepcopy(b.expectedBlockLength))
-deepcopy(b::BootstrapMovingBlock) = BootstrapMovingBlock(deepcopy(b.blockLength))
-deepcopy(b::BootstrapCircularBlock) = BootstrapCircularBlock(deepcopy(b.blockLength))
-deepcopy(b::BootstrapNonoverlappingBlock) = BootstrapNonoverlappingBlock(deepcopy(b.blockLength))
-deepcopy(b::BootstrapTaperedBlock) = BootstrapTaperedBlock(deepcopy(b.blockLength), deepcopy(b.kernelFunction))
+#deepcopy
+function deepcopy(x::BootstrapMethod)
+	tempArgs = [ deepcopy(getfield(x, i)) for i = 1:length(names(x)) ]
+	return(eval(parse(string(typeof(x)) * "(tempArgs...)")))
+end
 #string
+string(x::Bootstrap_Dummy) = "dummy"
 string(x::BootstrapIID) = "iid"
 string(x::BootstrapStationary) = "stationary"
 string(x::BootstrapNonoverlappingBlock) = "nonoverlappingBlock"
@@ -221,9 +214,12 @@ BlockLengthPP2002(numObs::Int, kernelFunction::KernelFunction) = BlockLengthPP20
 BlockLengthPP2002(bandwidthMethod::BandwidthMethod) = BlockLengthPP2002(bandwidthMethod, KernelPP2002Trap())
 #------------ METHODS -------------
 #copy function
-copy(b::BlockLengthPPW2009) = BlockLengthPPW2009(copy(b.bandwidthMethod), copy(b.bootstrapMethod))
-copy(b::BlockLengthPP2002) = BlockLengthPP2002(copy(b.bandwidthMethod), copy(b.kernelFunction))
+function deepcopy(x::BlockLengthMethod)
+	tempArgs = [ deepcopy(getfield(x, i)) for i = 1:length(names(x)) ]
+	return(eval(parse(string(typeof(x)) * "(tempArgs...)")))
+end
 #string function for string representation of block length method
+string(b::BlockLength_Dummy) = "dummy"
 string(b::BlockLengthPPW2009) = "PPW2009"
 string(b::BlockLengthPP2002) = "PP2002"
 #show method for block length methods
@@ -242,12 +238,18 @@ show(b::BlockLengthMethod) = show(STDOUT, b)
 #toBlockLengthMethod: This function is used to convert string representations of block length methods into <: BlockLengthMethod
 function update!(bm::BlockLengthPPW2009; bandwidthMethod::BandwidthMethod=BandwidthDummy(), bootstrapMethod::Symbol=:none)
 	typeof(bandwidthMethod) != BandwidthDummy && (bm.bandwidthMethod = bandwidthMethod)
-	bootstrapMethod != :none && (bm.bootstrapMethod = bootstrapMethod)
+	if bootstrapMethod != :none
+		!(bootstrapMethod == :stationary || bootstrapMethod == :circularBlock || bootstrapMethod == :movingBlock) && error("BlockLengthPPW2009 detection method only viable for stationary, circular block, and moving block bootstraps")
+		bm.bootstrapMethod = bootstrapMethod
+	end
 	return(bm)
 end
 function update!(bm::BlockLengthPP2002; bandwidthMethod::BandwidthMethod=BandwidthDummy(), kernelFunction::KernelFunction=KernelDummy())
 	typeof(bandwidthMethod) != BandwidthDummy && (bm.bandwidthMethod = bandwidthMethod)
-	typeof(kernelFunction) != KernelDummy && (bm.kernelFunction = kernelFunction)
+	if typeof(kernelFunction) != KernelDummy
+		!(typeof(kernelFunction) == KernelPP2002Trap || typeof(kernelFunction) == KernelPP2002Smooth) && error("Tapered block bootstrap method can only be implemented with KernelPP2002Trap or KernelPP2002Smooth kernel functions")
+		bm.kernelFunction = kernelFunction
+	end
 	return(bm)
 end
 
@@ -322,9 +324,11 @@ function BootstrapParam{T<:Number}(x::Vector{T}; numObsResample::Int=length(x), 
 	return(bp)
 end
 #------------ METHODS ------------------
-#copy, deepcopy
-copy(p::BootstrapParam) = BootstrapParam(copy(p.numObsData), copy(p.numObsResample), copy(p.numResample), copy(p.bootstrapMethod), copy(p.blockLengthMethod), copy(p.statistic), copy(p.distributionParam))
-deepcopy(p::BootstrapParam) = BootstrapParam(deepcopy(p.numObsData), deepcopy(p.numObsResample), deepcopy(p.numResample), deepcopy(p.bootstrapMethod), deepcopy(p.blockLengthMethod), deepcopy(p.statistic), deepcopy(p.distributionParam))
+#deepcopy
+function deepcopy(x::BootstrapParam)
+	tempArgs = [ deepcopy(getfield(x, i)) for i = 1:length(names(x)) ]
+	return(eval(parse(string(typeof(x)) * "(tempArgs...)")))
+end
 #show methods
 function show(io::IO, b::BootstrapParam)
 	println(io, "dependent bootstrap parameter values:")
@@ -343,9 +347,18 @@ show(b::BootstrapParam) = show(STDOUT, b)
 getblocklength(bp::BootstrapParam) = getblocklength(bp.bootstrapMethod)
 #Update specified fields with specified keyword arguments
 function update!(bp::BootstrapParam; numObsData::Int=-999, numObsResample::Int=-999, numResample::Int=-999, bootstrapMethod::BootstrapMethod=Bootstrap_Dummy(), blockLengthMethod::BlockLengthMethod=BlockLength_Dummy(), statistic::Function=bootstrap_dummy_func, distributionParam::Function=bootstrap_dummy_func, blockLength::Number=-999)
-	numObsData != -999 && (bp.numObsData = numObsData)
-	numObsResample != -999 && (bp.numObsResample = numObsResample)
-	numResample != -999 && (bp.numResample = numResample)
+	if numObsData != -999
+		numObsData < 1 && error("Number of observations in dataset must be greater than zero to apply a bootstrap")
+		bp.numObsData = numObsData
+	end
+	if numObsResample != -999
+		numObsResample < 1 && error("Number of observations per resample must be greater than zero")
+		bp.numObsResample = numObsResample
+	end
+	if numResample != -999
+		bp.numResample = numResample
+		numResample < 1 && error("Number of resamples to bootstrap must be greater than zero")
+	end
 	typeof(bootstrapMethod) != Bootstrap_Dummy && (bp.bootstrapMethod = bootstrapMethod)
 	typeof(blockLengthMethod) != BlockLength_Dummy && (bp.blockLengthMethod = blockLengthMethod)
 	statistic != bootstrap_dummy_func && (bp.statistic = statistic)
