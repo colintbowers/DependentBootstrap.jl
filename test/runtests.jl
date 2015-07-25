@@ -8,7 +8,6 @@ using 	DependentBootstrap,
 # export 	testModuleBasic
 
 
-
 #******************************************************************************
 
 #----------------------------------------------------------
@@ -17,25 +16,13 @@ using 	DependentBootstrap,
 const bootstrapList = [BootstrapIID(), BootstrapStationary(), BootstrapMovingBlock(), BootstrapCircularBlock(), BootstrapNonoverlappingBlock(), BootstrapTaperedBlock()]::Vector{BootstrapMethod}
 const blockLengthList = [BlockLengthPPW2009(), BlockLengthPP2002()]::Vector{BlockLengthMethod}
 const kernelFuncTaperedList = [KernelPP2002Trap(), KernelPP2002Smooth()]::Vector{KernelFunction}
-const bootstrapStringForPPWList = ["stationary", "circularBlock", "movingBlock"]::Vector{ASCIIString}
+const bootstrapStringForPPWList = [:stationary, :circularBlock, :movingBlock]::Vector{Symbol}
 const bandwidthList = [BandwidthWhiteNoise(), BandwidthBartlett(), BandwidthP2003()]::Vector{BandwidthMethod}
-const statisticList = ["mean", mean, "sum", sum, "variance", var, "std", std, "median", median, "quantile"]::Vector{Any}
-const distributionParamList = ["mean", mean, "median", median, "variance", var, "std", std, "quantile", "conf"]::Vector{Any}
+const statisticList = [mean, sum, var, std, median]::Vector{Function}
+const distributionParamList = [mean, median, var, std, quantile]::Vector{Function}
 #Functions for randomly generating input
-function randBL()
-	if rand() < 0.8 #Most of the time we force the function to use routines that estimate block length
-		return(-1)
-	else
-		return(rand(0:20))
-	end
-end
-function randEBL()
-	if rand() < 0.8 #Most of the time we force the function to use routines that estimate block length
-		return(-1.0)
-	else
-		return(rand() * 20)
-	end
-end
+randBL() = rand() < 0.8 ? -1 : rand(0:20)
+randEBL() = rand() < 0.8 ? -1.0 : rand() * 20
 randBootstrap(b::BootstrapIID) = BootstrapIID()
 randBootstrap(b::BootstrapStationary) = BootstrapStationary(randEBL())
 randBootstrap(b::BootstrapMovingBlock) = BootstrapMovingBlock(randBL())
@@ -49,30 +36,8 @@ randKernel(kT::KernelPP2002Trap) =  KernelPP2002Trap(0.5 * rand())
 randKernel(kT::KernelPP2002Smooth) =  KernelPP2002Smooth(abs(randn()) + 1.0)
 randBlockLength(b::BlockLengthPPW2009) = BlockLengthPPW2009(randBandwidth(bandwidthList[rand(1:length(bandwidthList))]), bootstrapStringForPPWList[rand(1:length(bootstrapStringForPPWList))])
 randBlockLength(b::BlockLengthPP2002) = BlockLengthPP2002(randBandwidth(bandwidthList[rand(1:length(bandwidthList))]), randKernel(kernelFuncTaperedList[rand(1:length(kernelFuncTaperedList))]))
-function randStatistic()
-	x = statisticList[rand(1:length(statisticList))]
-	if typeof(x) == ASCIIString
-		if x == "quantile"
-			x = "quantile" * "_" * string(rand(1:999))
-		end
-	end
-	return(x)
-end
-function randDistributionParam()
-	x = distributionParamList[rand(1:length(distributionParamList))]
-	if typeof(x) == ASCIIString
-		if x == "quantile"
-			for k = 1:rand(1:3)
-				x = x * "_" * string(rand(1:999))
-			end
-		elseif x == "conf"
-			if rand() > 0.3
-				x = x * "_0" * string(rand(1:99)) * "_" * string(rand(20:999))
-			end
-		end
-	end
-	return(x)
-end
+randStatistic() = statisticList[rand(1:length(statisticList))]
+randDistributionParam() = distributionParamList[rand(1:length(distributionParamList))]
 function randBootstrapParam(A::Int)
 	if A == 1
 		numObsData = rand(3:200)
@@ -88,18 +53,13 @@ function randBootstrapParam(A::Int)
 	bootstrapMethod = randBootstrap(bootstrapList[rand(1:length(bootstrapList))])
 	blockLengthMethod = randBlockLength(blockLengthList[rand(1:length(blockLengthList))])
 	if typeof(bootstrapMethod) == BootstrapTaperedBlock
-		if rand() > 0.5
-			statistic = mean
-		else
-			statistic = "mean"
-		end
+		rand() > 0.5 ? (statistic = mean) : (statistic = sum)
 	else
 		statistic = randStatistic()
 	end
 	distributionParam = randDistributionParam()
 	return(BootstrapParam(numObsData, numObsResample, numResample, bootstrapMethod, blockLengthMethod, statistic, distributionParam))
 end
-
 
 #Function for testing module
 function testModuleRandom(KK::Int)
@@ -109,47 +69,47 @@ function testModuleRandom(KK::Int)
 		#Test bootstrap param input
 		b = randBootstrapParam(1)
 		x = randn(b.numObsData)
-		if typeof(b.bootstrapMethod) == BootstrapTaperedBlock
-			x = x - mean(x)
-		end
 		if typeof(b.bootstrapMethod) != BootstrapIID
-			cNonIID += 1
-			blockLength = dBootstrapBlockLength(x, b)
+			if getblocklength(b) <= 0
+				cNonIID += 1
+				blockLength = dbootstrapblocklength(x, b)
+			end
 		end
-		bCopy = copy(b)
+		bCopy = deepcopy(b)
 		if typeof(bCopy.bootstrapMethod) != BootstrapIID
-			dBootstrapBlockLength!(x, bCopy)
+			if getblocklength(b) <= 0
+				dbootstrapblocklength!(x, bCopy)
+			end
 		end
-		if getBlockLength(bCopy) > 0
+		if getblocklength(bCopy) > 0
 			cPosBL += 1
-			inds1 = dBootstrapIndex(bCopy)
-			inds2 = dBootstrapIndex(x, bCopy)
+			inds1 = dbootstrapindex(bCopy)
 		end
-		d1 = dBootstrapData(x, b)
-		d2 = dBootstrapData!(x, b)
-		s1 = dBootstrapStatistic(x, b)
-		s2 = dBootstrapStatistic!(x, b)
-		y1 = dBootstrap(x, b)
-		y2 = dBootstrap!(x, b)
+		d1 = dbootstrapdata(x, b)
+		d2 = dbootstrapdata!(x, b)
+		s1 = dbootstrapstatistic(x, b)
+		s2 = dbootstrapstatistic!(x, b)
+		y1 = dbootstrap(x, b)
+		y2 = dbootstrap!(x, b)
 		#Test keyword arguments
-		numObsDataStr = b.numObsData
-		numObsResampleStr = b.numObsResample
-		numResampleStr = b.numResample
-		bootstrapMethodStr = string(b.bootstrapMethod)
-		blockLengthMethodStr = string(b.blockLengthMethod)
-		bandwidthMethodStr = string(b.blockLengthMethod.bandwidthMethod)
-		blockLengthIndexFuncStr = rand(-8:3)
-		statisticStr = string(b.statistic)
-		distributionParamStr = string(b.distributionParam)
-		if bootstrapMethodStr != "iid"
-			bL = dBootstrapBlockLength(x, blockLengthMethod=blockLengthMethodStr, bootstrapMethod=bootstrapMethodStr, bandwidthMethod=bandwidthMethodStr)
+		numObsData = b.numObsData
+		numObsResample = b.numObsResample
+		numResample = b.numResample
+		bootstrapMethod = b.bootstrapMethod
+		blockLengthMethod = b.blockLengthMethod
+		bandwidthMethod = b.blockLengthMethod.bandwidthMethod
+		statistic = b.statistic
+		distributionParam = b.distributionParam
+		if typeof(bootstrapMethod) != BootstrapIID
+			bL = dbootstrapblocklength(x, blockLengthMethod=blockLengthMethod, bandwidthMethod=bandwidthMethod)
 		end
-		if blockLengthIndexFuncStr > 0
-			indsK = dBootstrapIndex(x, numObsResample=numObsResampleStr, numResample=numResampleStr, blockLength=blockLengthIndexFuncStr, bootstrapMethod=bootstrapMethodStr, blockLengthMethod=blockLengthMethodStr, bandwidthMethod = bandwidthMethodStr)
-		end
-		d = dBootstrapData(x, numObsResample=numObsResampleStr, numResample=numResampleStr, blockLength=blockLengthIndexFuncStr, bootstrapMethod=bootstrapMethodStr, blockLengthMethod=blockLengthMethodStr, bandwidthMethod = bandwidthMethodStr)
-		s = dBootstrapStatistic(x, numObsResample=numObsResampleStr, numResample=numResampleStr, blockLength=blockLengthIndexFuncStr, bootstrapMethod=bootstrapMethodStr, blockLengthMethod=blockLengthMethodStr, bandwidthMethod = bandwidthMethodStr, statistic=statisticStr)
-		s = dBootstrap(x, numObsResample=numObsResampleStr, numResample=numResampleStr, blockLength=blockLengthIndexFuncStr, bootstrapMethod=bootstrapMethodStr, blockLengthMethod=blockLengthMethodStr, bandwidthMethod = bandwidthMethodStr, statistic=statisticStr, distributionParam=distributionParamStr)
+		indsK = dbootstrapindex(x, numObsResample=numObsResample, numResample=numResample, blockLength=rand(1:5), bootstrapMethod=bootstrapMethod)
+		d = dbootstrapdata(x, numObsResample=numObsResample, numResample=numResample, bootstrapMethod=bootstrapMethod, blockLengthMethod=blockLengthMethod)
+		d = dbootstrapdata(x, numObsResample=numObsResample, numResample=numResample, blockLength=rand(1:5), bootstrapMethod=bootstrapMethod)
+		s = dbootstrapstatistic(x, numObsResample=numObsResample, numResample=numResample, bootstrapMethod=bootstrapMethod, blockLengthMethod=blockLengthMethod, statistic=statistic)
+		s = dbootstrapstatistic(x, numObsResample=numObsResample, numResample=numResample, blockLength=rand(1:5), bootstrapMethod=bootstrapMethod, statistic=statistic)
+		s = dbootstrap(x, numObsResample=numObsResample, numResample=numResample, bootstrapMethod=bootstrapMethod, blockLengthMethod=blockLengthMethod, statistic=statistic, distributionParam=distributionParam)
+		s = dbootstrap(x, numObsResample=numObsResample, numResample=numResample, blockLength=rand(1:5), bootstrapMethod=bootstrapMethod, statistic=statistic, distributionParam=distributionParam)
 	end
 	println("Random test passed.")
 	println("NonIID bootstrap method on " * string(cNonIID) * " of " * string(KK) * " iterations")
@@ -159,7 +119,7 @@ end
 
 #Function for testing the block lengths
 function testBlockLength()
-	datasetDir = "/home/colin/Cloud/Codebase/Julia/Modules/ctbDependentBootstrap/test/"
+	datasetDir = "/home/" * ENV["USER"] * "/.julia/v0.3/DependentBootstrap/test/"
 	d1 = readcsv(datasetDir * "d1.csv")
 	d2 = readcsv(datasetDir * "d2.csv")
 	d3 = readcsv(datasetDir * "d3.csv")
@@ -167,10 +127,10 @@ function testBlockLength()
 	d5 = readcsv(datasetDir * "d5.csv")
 	d6 = readcsv(datasetDir * "d6.csv")
 	d7 = readcsv(datasetDir * "d7.csv")
-	bMStationary = BlockLengthPPW2009("stationary", length(d1))
-	bMCircular = BlockLengthPPW2009("circularBlock", length(d1))
-	bMPPTrap = BlockLengthPP2002(KernelPP2002Trap(), length(d1))
-	bMPPSmooth = BlockLengthPP2002(KernelPP2002Smooth(), length(d1))
+	bMStationary = BlockLengthPPW2009(length(d1), :stationary)
+	bMCircular = BlockLengthPPW2009(length(d1), :circularBlock)
+	bMPPTrap = BlockLengthPP2002(length(d1), KernelPP2002Trap())
+	bMPPSmooth = BlockLengthPP2002(length(d1), KernelPP2002Smooth())
 	blPatton = [1.7616 2.0165; 6.0104 6.8802; 9.9051 11.3385; 11.2333 12.8589; 7.3506 8.4144; 11.8778 13.5967; 22.6527 25.9308]
 	blOriginal = [1.756310026822603 2.010473102043058; 6.034031705365532 6.907242033150295; 9.957766996351472 11.398797704751043; 11.224677287339041 12.849047958881897; 7.9092103443486925 9.05378572852609; 11.896892646671194 13.61854245477252; 22.585333734911174 25.853753199173056]
 	blMe = Array(Float64, 7, 2)
@@ -183,10 +143,10 @@ function testBlockLength()
 		n == 5 && (x = vec(d5))
 		n == 6 && (x = vec(d6))
 		n == 7 && (x = vec(d7))
-		blMe[n, 1] = dBootstrapBlockLength(x, bMStationary)
-		blMe[n, 2] = dBootstrapBlockLength(x, bMCircular)
-		blMePP[n, 1] = dBootstrapBlockLength(x, bMPPTrap)
-		blMePP[n, 2] = dBootstrapBlockLength(x, bMPPSmooth)
+		blMe[n, 1] = dbootstrapblocklength(x, bMStationary)
+		blMe[n, 2] = dbootstrapblocklength(x, bMCircular)
+		blMePP[n, 1] = dbootstrapblocklength(x, bMPPTrap)
+		blMePP[n, 2] = dbootstrapblocklength(x, bMPPSmooth)
 	end
 	for n = 1:7
 		println("Dataset " * string(n) * ":")
@@ -209,16 +169,15 @@ function testBlockLength()
 end
 
 
-
 function testBootstrapIndexVisual()
 	numObs = 20
 	blockLength = 5
 	numResample = 5
-	bpIID = BootstrapParam(numObs, bootstrapMethod="iid")
-	bpSB = BootstrapParam(numObs, bootstrapMethod="stationary")
-	bpCB = BootstrapParam(numObs, bootstrapMethod="circularBlock")
-	bpMB = BootstrapParam(numObs, bootstrapMethod="movingBlock")
-	bpN = BootstrapParam(numObs, bootstrapMethod = "nonoverlappingBlock")
+	bpIID = BootstrapParam(numObs, bootstrapMethod=BootstrapIID())
+	bpSB = BootstrapParam(numObs, bootstrapMethod=BootstrapStationary())
+	bpCB = BootstrapParam(numObs, bootstrapMethod=BootstrapCircularBlock())
+	bpMB = BootstrapParam(numObs, bootstrapMethod=BootstrapMovingBlock())
+	bpN = BootstrapParam(numObs, bootstrapMethod=BootstrapNonoverlappingBlock(), blockLength=rand(2:8))
 	#First test bootstrap indices on small datasets where output can be inspected
 	for k = 1:5
 		if k == 1
@@ -237,9 +196,9 @@ function testBootstrapIndexVisual()
 			bp = bpN; println("Bootstrap method = nonoverlappingBlock (block length of " * string(blockLength) * "). Number of observations = " * string(numObs))
 		end
 		if k > 1
-			replaceBlockLength!(bp, blockLength)
+			update!(bp, blockLength=blockLength)
 		end
-		inds = dBootstrapIndex(bp.bootstrapMethod, numObs, numObs, numResample)
+		inds = dbootstrapindex(bp.bootstrapMethod, numObs, numObs, numResample)
 		for m = 1:numResample
 			println("    Resampling indices number " * string(m) * ":" * string(vec(inds[:, m])))
 		end
@@ -247,11 +206,10 @@ function testBootstrapIndexVisual()
 end
 
 
-
 #Function for testing the bootstrap
 function testBootstrapVisual()
 	numResample = 10
-	datasetDir = "/home/colin/Cloud/Codebase/Julia/Modules/ctbDependentBootstrap/test/"
+	datasetDir = "/home/" * ENV["USER"] * "/.julia/v0.3/DependentBootstrap/test/"
 	d1 = readcsv(datasetDir * "d1.csv")
 	d2 = readcsv(datasetDir * "d2.csv")
 	d3 = readcsv(datasetDir * "d3.csv")
@@ -266,11 +224,11 @@ function testBootstrapVisual()
 	d5M5 = readcsv(datasetDir * "d5_Mean5.csv")
 	d6M5 = readcsv(datasetDir * "d6_Mean5.csv")
 	d7M5 = readcsv(datasetDir * "d7_Mean5.csv")
-	bpIID = BootstrapParam(length(d1), bootstrapMethod="iid")
-	bpSB = BootstrapParam(length(d1), bootstrapMethod="stationary")
-	bpCB = BootstrapParam(length(d1), bootstrapMethod="circularBlock")
-	bpMB = BootstrapParam(length(d1), bootstrapMethod="movingBlock")
-	bpT = BootstrapParam(length(d1), bootstrapMethod="taperedBlock")
+	bpIID = BootstrapParam(length(d1), bootstrapMethod=BootstrapIID())
+	bpSB = BootstrapParam(length(d1), bootstrapMethod=BootstrapStationary())
+	bpCB = BootstrapParam(length(d1), bootstrapMethod=BootstrapCircularBlock())
+	bpMB = BootstrapParam(length(d1), bootstrapMethod=BootstrapMovingBlock())
+	bpT = BootstrapParam(length(d1), bootstrapMethod=BootstrapTaperedBlock())
 	for n = 1:7
 		println("Dataset " * string(n))
 		n == 1 && (x = vec(d1))
@@ -300,8 +258,8 @@ function testBootstrapVisual()
 			k == 5 && println("Bootstrap method = taperedBlock")
 			k == 5 && (x = x - mean(x))
 			k == 5 && (x5 = x5 - mean(x5))
-			replaceNumResample!(bp, numResample)
-			meanStat = dBootstrapStatistic!(bp, x)
+			update!(bp, numResample=numResample)
+			meanStat = dbootstrapstatistic!(bp, x)
 			println("    Mean = 0, mean stats:")
 			if k == 5
 				println("    NOTE: Data de-meaned before applying tapered block bootstrap")
@@ -309,7 +267,7 @@ function testBootstrapVisual()
 			for j = 1:length(meanStat)
 				@printf(STDOUT, "    %1.3f", meanStat[j])
 			end
-			meanStat = dBootstrapStatistic!(bp, x5)
+			meanStat = dbootstrapstatistic!(bp, x5)
 			println("")
 			println("    Mean = 5, mean stats:")
 			if k == 5

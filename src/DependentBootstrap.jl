@@ -17,9 +17,7 @@ using 	Distributions,
 
 #Load any specific variables/functions that are needed (use import ModuleName1.FunctionName1, ModuleName2.FunctionName2, etc)
 import 	Base.string,
-		Base.show,
-		Base.copy,
-		Base.deepcopy
+		Base.show
 
 #Specify the variables/functions to export (use export FunctionName1, FunctionName2, etc)
 export 	BootstrapMethod,
@@ -56,7 +54,9 @@ export 	BootstrapMethod,
 		dbootstrap_quantile,
 		dbootstrap_quantile!,
 		dbootstrap_conf,
-		dbootstrap_conf!
+		dbootstrap_conf!,
+		dbootstrap_mad,
+		dbootstrap_mad!
 
 
 
@@ -120,11 +120,6 @@ BootstrapTaperedBlock() = BootstrapTaperedBlock(-1, KernelPP2002Trap())
 BootstrapTaperedBlock(blockLength::Int) = BootstrapTaperedBlock(blockLength, KernelPP2002Trap())
 BootstrapTaperedBlock(blockLength::Number) = BootstrapTaperedBlock(convert(Int, ceil(blockLength)), KernelPP2002Trap())
 #---- METHODS ----
-#deepcopy
-function deepcopy(x::BootstrapMethod)
-	tempArgs = [ deepcopy(getfield(x, i)) for i = 1:length(names(x)) ]
-	return(eval(parse(string(typeof(x)) * "(tempArgs...)")))
-end
 #string
 string(x::Bootstrap_Dummy) = "dummy"
 string(x::BootstrapIID) = "iid"
@@ -163,16 +158,14 @@ function update!(bm::BootstrapStationary; blockLength::Number=-999)
 	return(bm)
 end
 function update!{T<:Union(BootstrapMovingBlock, BootstrapCircularBlock, BootstrapNonoverlappingBlock, BootstrapTaperedBlock)}(bm::T; blockLength::Number=-999)
-	blockLength != -999 && (bm.blockLength = convert(Int, blockLength))
+	blockLength != -999 && (bm.blockLength = convert(Int, ceil(blockLength)))
 	return(bm)
 end
 function update!(bm::BootstrapTaperedBlock; blockLength::Number=-999, kernelFunction::KernelFunction=KernelDummy())
-	blockLength != -999 && (bm.blockLength = convert(Int, blockLength))
+	blockLength != -999 && (bm.blockLength = convert(Int, ceil(blockLength)))
 	typeof(kernelFunction) != KernelDummy && (bm.kernelFunction = kernelFunction)
 	return(bm)
 end
-
-
 
 
 #------- BLOCK LENGTH METHOD TYPES -----------------------
@@ -213,11 +206,6 @@ BlockLengthPP2002(numObs::Int) = BlockLengthPP2002(BandwidthP2003(numObs), Kerne
 BlockLengthPP2002(numObs::Int, kernelFunction::KernelFunction) = BlockLengthPP2002(BandwidthP2003(numObs), kernelFunction)
 BlockLengthPP2002(bandwidthMethod::BandwidthMethod) = BlockLengthPP2002(bandwidthMethod, KernelPP2002Trap())
 #------------ METHODS -------------
-#copy function
-function deepcopy(x::BlockLengthMethod)
-	tempArgs = [ deepcopy(getfield(x, i)) for i = 1:length(names(x)) ]
-	return(eval(parse(string(typeof(x)) * "(tempArgs...)")))
-end
 #string function for string representation of block length method
 string(b::BlockLength_Dummy) = "dummy"
 string(b::BlockLengthPPW2009) = "PPW2009"
@@ -306,12 +294,14 @@ function BootstrapParam(numObsData::Int; numObsResample::Int=numObsData, numResa
 		blockLengthMethod = BlockLengthPPW2009(numObsData)
 		update!(bootstrapMethod, blockLength=blockLength)
 	else
-		if typeof(blockLengthMethod) == BlockLength_Dummy #We need to automatically decide a block-length procedure
-			if typeof(bootstrapMethod) == BootstrapStationary; blockLengthMethod = BlockLengthPPW2009(BandwidthP2003(numObsData), :stationary)
-			elseif typeof(bootstrapMethod) == BootstrapCircularBlock; blockLengthMethod = BlockLengthPPW2009(BandwidthP2003(numObsData), :circularBlock)
-			elseif typeof(bootstrapMethod) == BootstrapMovingBlock; blockLengthMethod = BlockLengthPPW2009(BandwidthP2003(numObsData), :movingBlock)
-			elseif typeof(bootstrapMethod) == BootstrapTaperedBlock; blockLengthMethod = BlockLengthPP2002(BandwidthP2003(numObsData), KernelPP2002Trap())
-			else; error("Automatic blockLengthMethod selection not possible for chosen bootstrapMethod. Please explicitly specify either a blockLength or blockLengthMethod.")
+		if typeof(blockLengthMethod) == BlockLength_Dummy
+			if typeof(bootstrapMethod) != BootstrapIID #We need to automatically decide a block-length procedure
+				if typeof(bootstrapMethod) == BootstrapStationary; blockLengthMethod = BlockLengthPPW2009(BandwidthP2003(numObsData), :stationary)
+				elseif typeof(bootstrapMethod) == BootstrapCircularBlock; blockLengthMethod = BlockLengthPPW2009(BandwidthP2003(numObsData), :circularBlock)
+				elseif typeof(bootstrapMethod) == BootstrapMovingBlock; blockLengthMethod = BlockLengthPPW2009(BandwidthP2003(numObsData), :movingBlock)
+				elseif typeof(bootstrapMethod) == BootstrapTaperedBlock; blockLengthMethod = BlockLengthPP2002(BandwidthP2003(numObsData), KernelPP2002Trap())
+				else; error("Automatic blockLengthMethod selection not possible for chosen bootstrapMethod. Please explicitly specify either a blockLength or blockLengthMethod.")
+				end
 			end
 		end
 	end
@@ -320,15 +310,10 @@ end
 #Keyword constructor with data provided (incorporates automatic block length selection if block length not provided)
 function BootstrapParam{T<:Number}(x::Vector{T}; numObsResample::Int=length(x), numResample::Int=defaultNumResample, bootstrapMethod::BootstrapMethod=BootstrapStationary(), blockLengthMethod::BlockLengthMethod=BlockLength_Dummy(), blockLength::Number=-1, statistic::Function=mean, distributionParam::Function=var)
 	bp = BootstrapParam(length(x), numObsResample=numObsResample, numResample=numResample, bootstrapMethod=bootstrapMethod, blockLengthMethod=blockLengthMethod, blockLength=blockLength, statistic=statistic, distributionParam=distributionParam)
-	blockLength <= 0 && dbootstrapblocklength!(x, bp) #If no block-length provided, detect it from the data
+	getblocklength(bp) <= 0 && dbootstrapblocklength!(x, bp) #If no block-length provided, detect it from the data
 	return(bp)
 end
 #------------ METHODS ------------------
-#deepcopy
-function deepcopy(x::BootstrapParam)
-	tempArgs = [ deepcopy(getfield(x, i)) for i = 1:length(names(x)) ]
-	return(eval(parse(string(typeof(x)) * "(tempArgs...)")))
-end
 #show methods
 function show(io::IO, b::BootstrapParam)
 	println(io, "dependent bootstrap parameter values:")
@@ -654,7 +639,8 @@ end
 #----------------------------------------------------------
 function dbootstrapdata!{T<:Number}(x::AbstractVector{T}, bp::BootstrapParam)
 	if typeof(bp.bootstrapMethod) == BootstrapTaperedBlock #Check to make sure tapered block bootstrap is being used correctly
-		abs(mean(x)) > 1e-10 && error("Data must be de-meaned if bootstrap method is tapered block")
+		error("Sorry, tapered block bootstrap is still under construction")
+		x = dbootstrapdata_taperedblock_inf_fun(x, bp)
 	end
 	if getblocklength(bp) <= 0 #Update block length if necessary
 		typeof(bp.bootstrapMethod) != BootstrapIID && dbootstrapblocklength!(x, bp)
@@ -668,6 +654,41 @@ dbootstrapdata{T<:Number}(x::AbstractVector{T}, bp::BootstrapParam) = dbootstrap
 dbootstrapdata{T<:Number}(bp::BootstrapParam, x::AbstractVector{T}) = dbootstrapdata(x, bp)
 #Keyword argument wrapper
 dbootstrapdata{T<:Number}(x::AbstractVector{T}; numObsResample::Int=length(x), numResample::Int=defaultNumResample, bootstrapMethod::BootstrapMethod=BootstrapStationary(), blockLengthMethod::BlockLengthMethod=BlockLength_Dummy(), blockLength::Number=-1) = dbootstrapdata(x, BootstrapParam(x, numObsResample=numObsResample, numResample=numResample, bootstrapMethod=bootstrapMethod, blockLengthMethod=blockLengthMethod, blockLength=blockLength))
+#Non-exported function to get estimates of influence functions required by tapered-block bootstrap
+function dbootstrapdata_taperedblock_inf_fun{T<:Number}(x::AbstractVector{T}, bp::BootstrapParam)
+	#Need to expand this function. Consider statistic T = (1/N) * sum_n f(x_n). Influence function of each data point is typically f(x_n) - T_N
+	error("I am not confident that the tapered block bootstrap procedure is working correctly")
+	if bp.statistic == mean
+		xIF = x - mean(x)
+	elseif bp.statistic == sum
+		xIF = length(x) * (x - mean(x))
+	else
+		error("Unable to perform tapered-block bootstrap with specified statistic")
+	end
+	return(xIF)
+end
+#Multivariate method
+function dbootstrapdata!{T<:Number}(x::AbstractMatrix{T}, bp::BootstrapParam; blockLengthFilter::Symbol=:median)
+	if typeof(bp.bootstrapMethod) == BootstrapTaperedBlock #Check to make sure tapered block bootstrap is being used correctly
+		error("Tapered block bootstrap is currently not available")
+	end
+	if getblocklength(bp) <= 0 #Update block length if necessary
+		typeof(bp.bootstrapMethod) != BootstrapIID && multivariate_blocklength!(x, bp, blockLengthFilter)
+	end
+	inds = dbootstrapindex(bp)
+	xBoot = [ x[:, k][inds] for k = 1:size(x, 2) ]
+	if typeof(bp.bootstrapMethod) == BootstrapTaperedBlock
+		for k = 1:length(xBoot)
+			dbootstrapweight!(xBoot[k], bp.bootstrapMethod) #tapered block requires weighting
+		end
+	end
+	return(xBoot)
+end
+dbootstrapdata!{T<:Number}(bp::BootstrapParam, x::AbstractMatrix{T}; blockLengthFilter::Symbol=:median) = dbootstrapdata!(x, bp, blockLengthFilter=blockLengthFilter)
+dbootstrapdata{T<:Number}(x::AbstractMatrix{T}, bp::BootstrapParam; blockLengthFilter::Symbol=:median) = dbootstrapdata!(x, deepcopy(bp), blockLengthFilter=blockLengthFilter)
+dbootstrapdata{T<:Number}(bp::BootstrapParam, x::AbstractMatrix{T}; blockLengthFilter::Symbol=:median) = dbootstrapdata(x, bp, blockLengthFilter=blockLengthFilter)
+#Keyword argument wrapper for multivariate method
+dbootstrapdata{T<:Number}(x::AbstractMatrix{T}; numObsResample::Int=length(x), numResample::Int=defaultNumResample, bootstrapMethod::BootstrapMethod=BootstrapStationary(), blockLengthMethod::BlockLengthMethod=BlockLength_Dummy(), blockLength::Number=-1) = dbootstrapdata(x, BootstrapParam(x, numObsResample=numObsResample, numResample=numResample, bootstrapMethod=bootstrapMethod, blockLengthMethod=blockLengthMethod, blockLength=blockLength))
 
 
 
@@ -735,14 +756,14 @@ quantile_999{T<:Number}(x::AbstractVector{T}) = quantile(x, 0.999)
 #	Versions of this function for specific, popular parameters of interest that will be type-stable are below
 #----------------------------------------------------------
 #Function to return bootstrapped parameter. Function is not type stable, hence it farms most of the work out to other functions
-dbootstrap!{T<:Number}(x::AbstractVector{T}, bp::BootstrapParam) = dbootstrap_getdistributionparam(dbootstrapstatistic!(x, bp))
+dbootstrap!{T<:Number}(x::AbstractVector{T}, bp::BootstrapParam) = dbootstrap_getdistributionparam(dbootstrapstatistic!(x, bp), bp.distributionParam)
 dbootstrap!{T<:Number}(bp::BootstrapParam, x::AbstractVector{T}) = dbootstrap!(x, bp)
-dbootstrap{T<:Number}(x::AbstractVector{T}, bp::BootstrapParam) = dbootstrap_getdistributionparam(dbootstrapstatistic(x, bp))
+dbootstrap{T<:Number}(x::AbstractVector{T}, bp::BootstrapParam) = dbootstrap_getdistributionparam(dbootstrapstatistic(x, bp), bp.distributionParam)
 dbootstrap{T<:Number}(bp::BootstrapParam, x::AbstractVector{T}) = dbootstrap(x, bp)
 #Keyword argument wrapper
 dbootstrap{T<:Number}(x::AbstractVector{T}; numObsResample::Int=length(x), numResample::Int=defaultNumResample, bootstrapMethod::BootstrapMethod=BootstrapStationary(), blockLengthMethod::BlockLengthMethod=BlockLength_Dummy(), blockLength::Number=-1, statistic::Function=mean, distributionParam::Function=var) = dbootstrapstatistic(x, BootstrapParam(x, numObsResample=numObsResample, numResample=numResample, bootstrapMethod=bootstrapMethod, blockLengthMethod=blockLengthMethod, blockLength=blockLength, statistic=statistic, distributionParam=distributionParam))
 #Non-exported function used exclusively by dbootstrap to compute the distribution parameter (I've made this a separate function as I might make it more complicated in the future)
-dbootstrap_getdistributionparam{T<:Number}(x::AbstractVector{T}, bp::BootstrapParam) = bp.distributionParam(x)
+dbootstrap_getdistributionparam{T<:Number}(x::AbstractVector{T}, dp::Function) = dp(x)
 
 
 
@@ -768,6 +789,32 @@ dbootstrap_quantile{T<:Number}(x::AbstractVector{T}, p::Vector{Float64}=[0.025, 
 dbootstrap_conf{T<:Number}(x::AbstractVector{T}, bp::BootstrapParam, p::Vector{Float64}=[0.025, 0.975]) = length(p) != 2 ? error("Confidence interval must have exactly two probability inputs") : quantile(dbootstrapstatistic(x, bp), p)
 dbootstrap_conf!{T<:Number}(x::AbstractVector{T}, bp::BootstrapParam, p::Vector{Float64}=[0.025, 0.975]) = length(p) != 2 ? error("Confidence interval must have exactly two probability inputs") : quantile(dbootstrapstatistic!(x, bp), p)
 dbootstrap_conf{T<:Number}(x::AbstractVector{T}, p::Vector{Float64}=[0.025, 0.975]; numObsResample::Int=length(x), numResample::Int=defaultNumResample, bootstrapMethod::BootstrapMethod=BootstrapStationary(), blockLengthMethod::BlockLengthMethod=BlockLength_Dummy(), blockLength::Number=-1, statistic::Function=mean) = dbootstrap_conf(x, BootstrapParam(x, numObsResample=numObsResample, numResample=numResample, bootstrapMethod=bootstrapMethod, blockLengthMethod=blockLengthMethod, blockLength=blockLength, statistic=statistic), p)
+dbootstrap_mad{T<:Number}(x::AbstractVector{T}, bp::BootstrapParam) = mad(dbootstrapstatistic(x, bp))
+dbootstrap_mad!{T<:Number}(x::AbstractVector{T}, bp::BootstrapParam) = mad(dbootstrapstatistic!(x, bp))
+dbootstrap_mad{T<:Number}(x::AbstractVector{T}; numObsResample::Int=length(x), numResample::Int=defaultNumResample, bootstrapMethod::BootstrapMethod=BootstrapStationary(), blockLengthMethod::BlockLengthMethod=BlockLength_Dummy(), blockLength::Number=-1, statistic::Function=mean) = dbootstrap_mad(x, BootstrapParam(x, numObsResample=numObsResample, numResample=numResample, bootstrapMethod=bootstrapMethod, blockLengthMethod=blockLengthMethod, blockLength=blockLength, statistic=statistic))
+
+
+
+
+#non-exported method for obtaining the appropriate block-length for a multivariate time-series
+function multivariate_blocklength!{T<:Number}(x::AbstractMatrix{T}, bp::BootstrapParam, blockLengthFilter::Symbol)
+	if blockLengthFilter == :first
+		bL = dbootstrapblocklength(x[:, 1], bp.bootstrapParam)
+		blockLengthVec = [bL]
+	else
+		blockLengthVec = [ dbootstrapblocklength(x[:, n], bp) for n = 1:size(x, 2) ]
+		if blockLengthFilter == :mean;	bL = mean(blockLengthVec)
+		elseif blockLengthFilter == :median; bL = median(blockLengthVec)
+		elseif blockLengthFilter == :maximum; bL = maximum(blockLengthVec)
+		elseif blockLengthFilter == :minimum; bL = minimum(blockLengthVec)
+		else; error("Invalid value for blockLengthFilter")
+		end
+	end
+	update!(bp.bootstrapMethod, blockLength=bL)
+	return(bL, blockLengthVec)
+end
+multivariate_blocklength{T<:Number}(x::AbstractMatrix{T}, bp::BootstrapParam, blockLengthFilter::Symbol) = multivariate_blocklength!(x, deepcopy(bp), blockLengthFilter)
+
 
 
 
