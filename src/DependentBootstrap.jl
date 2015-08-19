@@ -386,6 +386,7 @@ function dbootstrapblocklength{T<:Number}(x::AbstractVector{T}, bm::BlockLengthP
 	end
 	blockLength = (2 * gHat^2 * length(x) / dHat)^(1/3)
 	blockLength = min(blockLength, ceil(min(3*sqrt(length(x)), length(x) / 3))) #Enforce upper bound on block length suggested by Patton
+	blockLength = max(blockLength, 1.0)
 	return(blockLength) #Equation 9 and 14 from Politis, White (2004)
 end
 #Block length selection method of Paparoditis, Politis (2002) "The Tapered Block Bootstrap for General Statistics From Stationary Sequences"
@@ -409,6 +410,7 @@ function dbootstrapblocklength{T<:Number}(x::AbstractVector{T}, bm::BlockLengthP
 	end
 	blockLength = (4 * gammaHat^2 * length(x) / deltaHat)^(1/5)
 	blockLength = min(blockLength, ceil(min(3*sqrt(length(x)), length(x) / 3))) #Enforce upper bound on block length suggested by Patton
+	blockLength = max(blockLength, 1.0)
 	return(blockLength) #Equation 20 from Paraproditis, Politis (2002)
 end
 #Non-exported helper functions
@@ -469,7 +471,7 @@ end
 #Stationary bootstrap
 function dbootstrapindex(bm::BootstrapStationary, numObsData::Int, numObsResample::Int, numResample::Int)
 	numObsData < 3 && error("You must have at least 3 observations to use dependent bootstrap routines")
-	bm.expectedBlockLength <= 0.0 || isnan(bm.expectedBlockLength) && error("Expected block length is non-positive or NaN. Try a method that includes the underlying data (these methods typically auto-estimate the block length) or else supply the block length explicitly.")
+	(bm.expectedBlockLength <= 0.0 || isnan(bm.expectedBlockLength)) && error("Expected block length is non-positive or NaN. Try a method that includes the underlying data (these methods typically auto-estimate the block length) or else supply the block length explicitly.")
 	if bm.expectedBlockLength <= 1.0 #IIDBootstrap case
 		inds = dbootstrapindex(BootstrapIID(), numObsData, numObsResample, numResample)
 	else
@@ -502,7 +504,7 @@ end
 #Moving block bootstrap
 function dbootstrapindex(bm::BootstrapMovingBlock, numObsData::Int, numObsResample::Int, numResample::Int)
 	numObsData < 3 && error("You must have at least 3 observations to use dependent bootstrap routines")
-	bm.blockLength <= 0 || isnan(bm.blockLength) && error("Expected block length is non-positive or NaN. Try a method that includes the underlying data (these methods typically auto-estimate the block length) or else supply the block length explicitly.")
+	(bm.blockLength <= 0 || isnan(bm.blockLength)) && error("Expected block length is non-positive or NaN. Try a method that includes the underlying data (these methods typically auto-estimate the block length) or else supply the block length explicitly.")
 	if bm.blockLength == 1
 		inds = dbootstrapindex(BootstrapIID(), numObsData, numObsResample, numResample)
 	else
@@ -522,7 +524,7 @@ end
 #Nonoverlapping block bootstrap (note, no block length detection routines available for this bootstrap method)
 function dbootstrapindex(bm::BootstrapNonoverlappingBlock, numObsData::Int, numObsResample::Int, numResample::Int)
 	numObsData < 3 && error("You must have at least 3 observations to use dependent bootstrap routines")
-	bm.blockLength <= 0 || isnan(bm.blockLength) && error("Expected block length is non-positive or NaN. Try a method that includes the underlying data (these methods typically auto-estimate the block length) or else supply the block length explicitly.")
+	(bm.blockLength <= 0 || isnan(bm.blockLength)) && error("Expected block length is non-positive or NaN. Try a method that includes the underlying data (these methods typically auto-estimate the block length) or else supply the block length explicitly.")
 	if bm.blockLength == 1
 		inds = dbootstrapindex(BootstrapIID(), numObsData, numObsResample, numResample)
 	else
@@ -548,7 +550,7 @@ end
 #Circular block bootstrap
 function dbootstrapindex(bm::BootstrapCircularBlock, numObsData::Int, numObsResample::Int, numResample::Int)
 	numObsData < 3 && error("You must have at least 3 observations to use dependent bootstrap routines")
-	bm.blockLength <= 0 || isnan(bm.blockLength) && error("Expected block length is non-positive or NaN. Try a method that includes the underlying data (these methods typically auto-estimate the block length) or else supply the block length explicitly.")
+	(bm.blockLength <= 0 || isnan(bm.blockLength)) && error("Expected block length is non-positive or NaN. Try a method that includes the underlying data (these methods typically auto-estimate the block length) or else supply the block length explicitly.")
 	if bm.blockLength == 1
 		inds = dbootstrapindex(BootstrapIID(), numObsData, numObsResample, numResample)
 	else
