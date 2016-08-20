@@ -4,8 +4,7 @@ A module for the Julia language that implements several varieties of the depende
 
 ## WARNING
 
-This module underwent a major update today (June 25th, 2015). I have not updated the docs yet to reflect this update, so if you want to use this module you will have to examine the source code yourself. I should get around to updating the docs in the next few weeks, although am considering holding off until Julia v0.4 arrives with its new documentation capabilities.
-
+The docs for this module are significantly out of date. For example, support for multivariate data is now present, but undocumented. I will hopefully get to updating the docs, as well as turning this into an official package, after the stable release of Julia v0.5.
 
 ## OLD DOCS FOLLOW
 
