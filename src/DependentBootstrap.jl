@@ -134,7 +134,7 @@ function show(io::IO, b::BootstrapStationary)
 	println(io, "bootstrap method = " * string(b))
 	println(io, "    expected block length = " * b.expectedBlockLength)
 end
-function show{T<:Union(BootstrapMovingBlock, BootstrapCircularBlock, BootstrapNonoverlappingBlock)}(io::IO, b::T)
+function show{T<:Union{BootstrapMovingBlock, BootstrapCircularBlock, BootstrapNonoverlappingBlock}}(io::IO, b::T)
 	println(io, "bootstrap method = " * string(b))
 	println(io, "    block length = " * b.blockLength)
 end
@@ -157,7 +157,7 @@ function update!(bm::BootstrapStationary; blockLength::Number=-999)
 	blockLength != -999 && (bm.expectedBlockLength = convert(Float64, blockLength))
 	return(bm)
 end
-function update!{T<:Union(BootstrapMovingBlock, BootstrapCircularBlock, BootstrapNonoverlappingBlock, BootstrapTaperedBlock)}(bm::T; blockLength::Number=-999)
+function update!{T<:Union{BootstrapMovingBlock, BootstrapCircularBlock, BootstrapNonoverlappingBlock, BootstrapTaperedBlock}}(bm::T; blockLength::Number=-999)
 	blockLength != -999 && (bm.blockLength = convert(Int, ceil(blockLength)))
 	return(bm)
 end
@@ -677,11 +677,19 @@ function dbootstrapdata!{T<:Number}(x::AbstractMatrix{T}, bp::BootstrapParam; bl
 	if getblocklength(bp) <= 0 #Update block length if necessary
 		typeof(bp.bootstrapMethod) != BootstrapIID && multivariate_blocklength!(x, bp, blockLengthFilter)
 	end
-	inds = dbootstrapindex(bp)
-	xBoot = [ x[:, k][inds] for k = 1:size(x, 2) ]
+	inds = dbootstrapindex(bp) #Get bootstrap indices
+	xBoot = Array(Matrix{T}, bp.numResample)
+	for m = 1:bp.numResample
+		curResample = Array(T, size(x, 1), size(x, 2))
+		curIndex = sub(inds, 1:size(inds, 1), m)
+		for k = 1:size(x, 2)
+			curResample[:, k] = x[:, k][curIndex]
+		end
+		xBoot[m] = curResample
+	end
 	if typeof(bp.bootstrapMethod) == BootstrapTaperedBlock
-		for k = 1:length(xBoot)
-			dbootstrapweight!(xBoot[k], bp.bootstrapMethod) #tapered block requires weighting
+		for m = 1:length(xBoot)
+			dbootstrapweight!(xBoot[m], bp.bootstrapMethod) #tapered block requires weighting
 		end
 	end
 	return(xBoot)
@@ -691,8 +699,6 @@ dbootstrapdata{T<:Number}(x::AbstractMatrix{T}, bp::BootstrapParam; blockLengthF
 dbootstrapdata{T<:Number}(bp::BootstrapParam, x::AbstractMatrix{T}; blockLengthFilter::Symbol=:median) = dbootstrapdata(x, bp, blockLengthFilter=blockLengthFilter)
 #Keyword argument wrapper for multivariate method
 dbootstrapdata{T<:Number}(x::AbstractMatrix{T}; numObsResample::Int=length(x), numResample::Int=defaultNumResample, bootstrapMethod::BootstrapMethod=BootstrapStationary(), blockLengthMethod::BlockLengthMethod=BlockLength_Dummy(), blockLength::Number=-1) = dbootstrapdata(x, BootstrapParam(x, numObsResample=numObsResample, numResample=numResample, bootstrapMethod=bootstrapMethod, blockLengthMethod=blockLengthMethod, blockLength=blockLength))
-
-
 
 
 
@@ -716,26 +722,26 @@ function dbootstrapstatistic_getstatistic{T<:Number}(d::Matrix{T}, bp::Bootstrap
 	end
 	N = size(d, 1)
 	#Julia is slow when functions are passed round as variables. The following if statement checks whether the user specified function is a popular choice and if so, that function is called explicitly rather than by a variable so that there is no performance overhead.
-	if bp.statistic == mean; statVec = [ convert(Float64, mean(sub(d, 1:N, m))) for m = 1:size(d, 2) ]
-	elseif bp.statistic == median; statVec = [ convert(Float64, median(sub(d, 1:N, m))) for m = 1:size(d, 2) ]
-	elseif bp.statistic == var; statVec = [ convert(Float64, var(sub(d, 1:N, m))) for m = 1:size(d, 2) ]
-	elseif bp.statistic == std; statVec = [ convert(Float64, std(sub(d, 1:N, m))) for m = 1:size(d, 2) ]
-	elseif bp.statistic == sum; statVec = [ convert(Float64, sum(sub(d, 1:N, m))) for m = 1:size(d, 2) ]
-	elseif bp.statistic == quantile_001; statVec = [ convert(Float64, quantile(sub(d, 1:N, m), 0.001)) for m = 1:size(d, 2) ]
-	elseif bp.statistic == quantile_01; statVec = [ convert(Float64, quantile(sub(d, 1:N, m), 0.01)) for m = 1:size(d, 2) ]
-	elseif bp.statistic == quantile_05; statVec = [ convert(Float64, quantile(sub(d, 1:N, m), 0.05)) for m = 1:size(d, 2) ]
-	elseif bp.statistic == quantile_1; statVec = [ convert(Float64, quantile(sub(d, 1:N, m), 0.1)) for m = 1:size(d, 2) ]
-	elseif bp.statistic == quantile_9; statVec = [ convert(Float64, quantile(sub(d, 1:N, m), 0.9)) for m = 1:size(d, 2) ]
-	elseif bp.statistic == quantile_95; statVec = [ convert(Float64, quantile(sub(d, 1:N, m), 0.95)) for m = 1:size(d, 2) ]
-	elseif bp.statistic == quantile_99; statVec = [ convert(Float64, quantile(sub(d, 1:N, m), 0.99)) for m = 1:size(d, 2) ]
-	elseif bp.statistic == quantile_999; statVec = [ convert(Float64, quantile(sub(d, 1:N, m), 0.999)) for m = 1:size(d, 2) ]
+	if bp.statistic == mean; statVec = Float64[ convert(Float64, mean(sub(d, 1:N, m))) for m = 1:size(d, 2) ]
+	elseif bp.statistic == median; statVec = Float64[ convert(Float64, median(sub(d, 1:N, m))) for m = 1:size(d, 2) ]
+	elseif bp.statistic == var; statVec = Float64[ convert(Float64, var(sub(d, 1:N, m))) for m = 1:size(d, 2) ]
+	elseif bp.statistic == std; statVec = Float64[ convert(Float64, std(sub(d, 1:N, m))) for m = 1:size(d, 2) ]
+	elseif bp.statistic == sum; statVec = Float64[ convert(Float64, sum(sub(d, 1:N, m))) for m = 1:size(d, 2) ]
+	elseif bp.statistic == quantile_001; statVec = Float64[ convert(Float64, quantile(sub(d, 1:N, m), 0.001)) for m = 1:size(d, 2) ]
+	elseif bp.statistic == quantile_01; statVec = Float64[ convert(Float64, quantile(sub(d, 1:N, m), 0.01)) for m = 1:size(d, 2) ]
+	elseif bp.statistic == quantile_05; statVec = Float64[ convert(Float64, quantile(sub(d, 1:N, m), 0.05)) for m = 1:size(d, 2) ]
+	elseif bp.statistic == quantile_1; statVec = Float64[ convert(Float64, quantile(sub(d, 1:N, m), 0.1)) for m = 1:size(d, 2) ]
+	elseif bp.statistic == quantile_9; statVec = Float64[ convert(Float64, quantile(sub(d, 1:N, m), 0.9)) for m = 1:size(d, 2) ]
+	elseif bp.statistic == quantile_95; statVec = Float64[ convert(Float64, quantile(sub(d, 1:N, m), 0.95)) for m = 1:size(d, 2) ]
+	elseif bp.statistic == quantile_99; statVec = Float64[ convert(Float64, quantile(sub(d, 1:N, m), 0.99)) for m = 1:size(d, 2) ]
+	elseif bp.statistic == quantile_999; statVec = Float64[ convert(Float64, quantile(sub(d, 1:N, m), 0.999)) for m = 1:size(d, 2) ]
 	else
 		#If we reach this point, bp.statistic is not a recognized function and so we have to put up with the performance overhead
-		statVec = [ convert(Float64, bp.statistic(sub(d, 1:N, m))) for m = 1:size(d, 2) ]
+		statVec = Float64[ convert(Float64, bp.statistic(sub(d, 1:N, m))) for m = 1:size(d, 2) ]
 	end
 	return(statVec)
 end
-#We define each of the above quantile functions locally. Note, these functions don't actually get called. I prefer to let the official quantile function handle sub-array case
+#We define each of the above quantile functions locally. Note, these functions don't actually get called. I just let the official quantile function handle sub-array case
 quantile_001{T<:Number}(x::AbstractVector{T}) = quantile(x, 0.001)
 quantile_01{T<:Number}(x::AbstractVector{T}) = quantile(x, 0.01)
 quantile_05{T<:Number}(x::AbstractVector{T}) = quantile(x, 0.05)
@@ -745,6 +751,30 @@ quantile_95{T<:Number}(x::AbstractVector{T}) = quantile(x, 0.95)
 quantile_99{T<:Number}(x::AbstractVector{T}) = quantile(x, 0.99)
 quantile_999{T<:Number}(x::AbstractVector{T}) = quantile(x, 0.999)
 
+#Multivariate method
+dbootstrapstatistic!{T<:Number}(x::AbstractMatrix{T}, bp::BootstrapParam) = dbootstrapstatistic_getstatistic(dbootstrapdata!(x, bp), bp)
+dbootstrapstatistic!{T<:Number}(bp::BootstrapParam, x::AbstractMatrix{T}) = dbootstrapstatistic!(x, bp)
+dbootstrapstatistic{T<:Number}(x::AbstractMatrix{T}, bp::BootstrapParam) = dbootstrapstatistic_getstatistic(dbootstrapdata(x, bp), bp)
+dbootstrapstatistic{T<:Number}(bp::BootstrapParam, x::AbstractMatrix{T}) = dbootstrapstatistic(x, bp)
+#NOTE: THIS FUNCTION IS NOT TYPE STABLE. Impossible to make it type stable, since the output of bp.statistic function call could be scalar or vector-valued
+#Note: bp.statistic function is assumed to take a matrix input although I might generalise in future to allow vector{vector}} input
+function dbootstrapstatistic_getstatistic{T<:Number}(d::Vector{Matrix{T}}, bp::BootstrapParam)
+	if typeof(bp.bootstrapMethod) == BootstrapTaperedBlock
+		error("Module is currently unable to perform the tapered block bootstrap for multivariate inputs")
+	end
+	TStat = typeof(bp.statistic(d[1]))
+	statVec = TStat[ bp.statistic(d[m]) for m = 1:length(d) ]
+	return(statVec)
+end
+#Two local functions to assemble current bootstrapped multivariate dataset in Vector{Vector}} or Matrix form
+dbootstrapstatistic_getarraydataset{T<:Number}(d::Vector{Matrix{T}}, colNum::Int) = Vector{T}[ d[k][:, colNum] for k = 1:length(d) ]
+function dbootstrapstatistic_getmatrixdataset{T<:Number}(d::Vector{Matrix{T}}, colNum::Int)
+	xOut = Array(T, size(d[1], 1), length(d))
+	for k = 1:length(d)
+		xOut[:, k] = d[k][:, colNum]
+	end
+	return(xOut)
+end
 
 
 #----------------------------------------------------------
@@ -766,10 +796,17 @@ dbootstrap{T<:Number}(bp::BootstrapParam, x::AbstractVector{T}) = dbootstrap(x, 
 dbootstrap{T<:Number}(x::AbstractVector{T}; numObsResample::Int=length(x), numResample::Int=defaultNumResample, bootstrapMethod::BootstrapMethod=BootstrapStationary(), blockLengthMethod::BlockLengthMethod=BlockLength_Dummy(), blockLength::Number=-1, statistic::Function=mean, distributionParam::Function=var) = dbootstrapstatistic(x, BootstrapParam(x, numObsResample=numObsResample, numResample=numResample, bootstrapMethod=bootstrapMethod, blockLengthMethod=blockLengthMethod, blockLength=blockLength, statistic=statistic, distributionParam=distributionParam))
 #Non-exported function used exclusively by dbootstrap to compute the distribution parameter (I've made this a separate function as I might make it more complicated in the future)
 dbootstrap_getdistributionparam{T<:Number}(x::AbstractVector{T}, dp::Function) = dp(x)
+#Multivariate method
+dbootstrap!{T<:Number}(x::AbstractMatrix{T}, bp::BootstrapParam) = dbootstrap_getdistributionparam_multivariate(dbootstrapstatistic!(x, bp), bp.distributionParam)
+dbootstrap!{T<:Number}(bp::BootstrapParam, x::AbstractMatrix{T}) = dbootstrap!(x, bp)
+dbootstrap{T<:Number}(x::AbstractMatrix{T}, bp::BootstrapParam) = dbootstrap_getdistributionparam_multivariate(dbootstrapstatistic(x, bp), bp.distributionParam)
+dbootstrap{T<:Number}(bp::BootstrapParam, x::AbstractMatrix{T}) = dbootstrap(x, bp)
+#NOTE: the element type of x could itself be of type AbstractVector
+#NOTE: THIS FUNCTION IS NOT TYPE STABLE.
+dbootstrap_getdistributionparam_multivariate(x::AbstractVector, dp::Function) = dp(x)
 
 
-
-#The following functions are dedicated type-stable versions of dbootstrap for specific distribution parameters.
+#The following functions are dedicated type-stable versions of dbootstrap for specific distribution parameters and univariate input
 dbootstrap_mean{T<:Number}(x::AbstractVector{T}, bp::BootstrapParam) = mean(dbootstrapstatistic(x, bp))
 dbootstrap_mean!{T<:Number}(x::AbstractVector{T}, bp::BootstrapParam) = mean(dbootstrapstatistic!(x, bp))
 dbootstrap_mean{T<:Number}(x::AbstractVector{T}; numObsResample::Int=length(x), numResample::Int=defaultNumResample, bootstrapMethod::BootstrapMethod=BootstrapStationary(), blockLengthMethod::BlockLengthMethod=BlockLength_Dummy(), blockLength::Number=-1, statistic::Function=mean) = dbootstrap_mean(x, BootstrapParam(x, numObsResample=numObsResample, numResample=numResample, bootstrapMethod=bootstrapMethod, blockLengthMethod=blockLengthMethod, blockLength=blockLength, statistic=statistic))
