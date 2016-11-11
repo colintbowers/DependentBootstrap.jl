@@ -575,6 +575,7 @@ dbootstrapindex(bm::BootstrapTaperedBlock, numObsData::Int, numObsResample::Int,
 #BootstrapParam wrapper
 dbootstrapindex(bp::BootstrapParam) = dbootstrapindex(bp.bootstrapMethod, bp.numObsData, bp.numObsResample, bp.numResample)
 #Keyword wrapper with block length provided
+#CONSIDER UPDATING SO THAT block length is also a keyword argument
 function dbootstrapindex(numObsData::Int, blockLength::Number; bootstrapMethod::BootstrapMethod=BootstrapStationary(), numObsResample::Int=numObsData, numResample::Int=defaultNumResample)
 	update!(bootstrapMethod, blockLength=blockLength)
 	return(dbootstrapindex(bootstrapMethod, numObsData, numObsResample, numResample))
