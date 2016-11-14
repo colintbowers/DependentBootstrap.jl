@@ -4,30 +4,98 @@ A module for the Julia language that implements several varieties of the depende
 
 ## WARNING
 
-The docs for this module are significantly out of date. For example, support for multivariate data is now present, but undocumented. I will hopefully get to updating the docs, as well as turning this into an official package, after the stable release of Julia v0.5.
+I have recently upgraded and simplified this package for use with Julia v0.5. Unfortunately, this update includes an enormous number of breaking changes. On the plus side, I plan to register the latest iteration of this package in the coming week, and once that is done, there will be no further breaking changes without a significant period of deprecation warnings.
 
-## OLD DOCS FOLLOW
+NOTE: This package is currently not registered but should be soon. If you wish to use it in the meantime, please use `Pkg.clone("package URL here")`.
 
-## Main Features
+## Main features
 
-This module allows Julia users to estimate the distribution of a test statistic using any of several varieties of the dependent bootstrap. It also includes the corresponding block-length selection procedure for each of these varieties of dependent bootstrap.
+This module allows Julia users to estimate the distribution of a test statistic using any of several varieties of the dependent bootstrap.
 
-The module is implemented entirely in Julia. Each bootstrap procedure and each block-length selection procedure is implemented as its own type. Various functions then operate on these types via multiple dispatch in order to return bootstrap indices, data, statistics, or distribution parameter estimates.
+The following bootstrap methods are implemented:
+* the *iid* bootstrap proposed in Efron (1979) "Bootstrap Methods: Another Look at the Jackknife",
+* the stationary bootstrap proposed in Politis, Romano (1994) "The Stationary Bootstrap"
+* the moving block bootstrap proposed in Kunsch (1989) "The jackknife and the bootstrap for general stationary observations" and (independently) Liu, Singh (1992) "Moving blocks jackknife and bootstrap capture weak dependence",
+* the circular block bootstrap proposed in Politis, Romano (1992) "A circular block resampling procedure for stationary data", and
+* the non-overlapping block bootstrap described in Lahiri (1999) *Resampling Methods for Dependent Data* (this method is not usually used and is included mainly as a curiosity).
+Some work has been done to implement the tapered block bootstrap of Paparoditis, Politis (2002) "The tapered block bootstrap for general statistics from stationary sequences", but, unfortunately it is not yet complete.
 
-AFAIK, this module is the most comprehensive library of bootstrapping techniques for *univariate* time-series available. It includes moving-block, circular-block, stationary, and tapered-block bootstraps, as well as block-length selection procedures of Politis, White (2004), Patton, Politis, and White (2009), and Paparoditis, Politis (2002).
+The module also implements the following block length selection procedures:
+* the block length selection procedure proposed in Politis, White (2004) "Automatic Block Length Selection For The Dependent Bootstrap", including the correction provided in Patton, Politis, and White (2009), and
+* the block length selection procedure proposed in Paparoditis, Politis (2002) "The tapered block bootstrap for general statistics from stationary sequences".
+Bandwidth selection for these block length procedures is implemented using the method proposed in Politis (2003) "Adaptive Bandwidth Choice".
 
-## What this package does not (yet) include
+The module is implemented entirely in Julia. Each bootstrap procedure and block-length selection procedure is implemented as its own type. Various functions then operate on these types via multiple dispatch in order to return bootstrap indices, data, statistics, or distribution parameter estimates, as well as optimal block length estimates. These functions operate on both univariate and multivariate datasets.
 
-This package currently only supports bootstrapping of *univariate* time-series. I would be happy to provide whatever support I can to any users who are interested in extending this package to support multivariate time-series or bootstrapping in a linear regression framework. Otherwise, hopefully I will get to this sometime this year (2015).
+## What this package does not include
 
-## A Quick Introduction to DependentBootstrap
+I have not included any procedures for bootstrapping confidence intervals in a linear regression framework. I believe that this functionality is better provided by a separate package (possibly GLM), that can use this package for the bootstrapping step.
+
+I also have not included support for the jackknife, wild bootstrap, or subsampling procedures. I would be quite open to pull requests that add these methods to the present package, but have not had time to implement them myself.
+
+## How to use this package
 
 #### Installation
 
-This package is not yet registered, so you will not be able to get it using `Pkg.add("DependentBootstrap")`. Further, it also depends on another package of mine that is not yet registered called [KernelStat](https://github.com/colintbowers/KernelStat.jl). This means that if you want to try out DependentBootstrap, you'll need to first clone KernelStat using `Pkg.clone("https://github.com/colintbowers/KernelStat.jl")` at the julia REPL, and then clone DependentBootstrap using `Pkg.clone("https://github.com/colintbowers/DependentBootstrap.jl")` at the julia REPL. This should install both packages in your .julia folder. You should then be able to load either of them into an active julia session with `using(KernelStat)` or `using(DependentBootstrap)` respectively. Note, `using(DependentBootstrap)` will automatically run `using(KernelStat)`.
+This package should be added using `Pkg.add("DependentBootstrap")`, and can then be called with `using DependentBootstrap`. The package only has two dependencies (currently): StatsBase and Distributions.
+
+#### Terminology
+
+In what follows, I follow the language in Lahiri (1999) *Resampling Methods for Dependent Data* and refer to the underlying test statistic of interest as a *level 1 statistic*, and the distribution parameter of the test statistic that is of interest as a *level 2 parameter*. For example, the user might be interested in the variance of the sample mean estimator, in which case the level 1 statistic is the sample mean, and the level 2 statistic is the variance.
+
+#### Core Type
+
+The package implements the core type `BootInput`. This type includes the following fields (in this order):
+* `numobs::Int` -> Number of observations (per column) in the dataset that is to be bootstrapped
+* `blocklength::Float64` -> Block length for the  bootstrap procedure
+* `numresample::Int` -> Number of bootstrap resamples to use
+* `bootmethod::BootMethod` -> Indicates which bootstrap methodology to use
+* `blmethod::BLMethod` -> Indicates which block length selection procedure to use (if blocklength <= 0.0)
+* `flevel1::Function` -> The level 1 statistic of interest
+* `flevel2::Function` -> The level 2 parameter of interest
+* `numobsperresample::Int` -> Number of observations per resample (almost always equal to numobs)
+
+For convenience, a keyword constructor for `BootInput` is provided and the function signature follows:
+
+BootInput(data ; blocklength::Number=0.0, numresample::Number=NUM_RESAMPLE, bootmethod::Symbol=:stationary, blmethod::Symbol=:dummy, flevel1::Function=mean, flevel2::Function=var, numobsperresample::Number=data_length(data))
+
+Some remarks are useful here:
+
+* `data` is the users dataset. Currently accepted types for `data` are `Vector{T<:Number}`, `Vector{Vector{T<:Number}}`, and `Matrix{T<:Number}`. Additional types for `data` are easy to add and so interested users should open an issue on github.
+* The default value for `blocklength` is 0.0. Any input `blocklength` <= 0.0 tells the `BootInput` constructor to estimate the optimal block length using the input `data` and the supplied block length method, or, if no block length method is supplied, to choose the best available block length procedure for the given bootstrap methodology.
+* The default value for numresample is the module constant `NUM_RESAMPLE` which is currently `1000`.
+* `bootmethod` can be specified using a symbol, which is converted to the appropriate type (which will be a subtype of the abstract `BootMethod`) by the constructor. Valid values are `:iid`, `:stationary`, `:moving`, `:circular`, and `:nooverlap`. Hopefully `:tapered` will be available in future iterations of this package.
+* `blmethod` can be specified using a symbol, which is converted to the appropriate type (which will be a subtype of the abstract `BLMethod`) by the constructor. The default value of `:dummy` tells the constructor the choose the most appropriate block length selection procedure for the given `bootmethod`. Note, if the input `blocklength` is > 0.0, then `blmethod` is irrelevant. Valid symbols for `blmethod` are `:ppw2009` and `:pp2002`. It is anticipated that the vast majority of users will want to use `:ppw2009`.
+* `flevel1` should be a function that can accept an input of the same type as `data`, and can return whatever type the user wants (note, it does not need to be scalar). An informative error is thrown if `flevel1` cannot accept `data` as input.
+* `flevel2` should be a function that can accept an input of the type that is output from `flevel1`, and can return whatever type the user wants (again, it need not be scalar). An informative error is thrown if `flevel2` cannot accept the output from `flevel1`.
+
+Several fields of a `BootInput` can be modified using the following exported functions:
+* `setblocklength!(b::BootInput, blocklength::Number)`
+* `setnumresample!(b::BootInput, numresample::Number)`
+* `setflevel1!(b::BootInput, flevel1::Function)`
+* `setflevel2!(b::BootInput, flevel2::Function)`
+If you wish to modify any other fields, it is better just to construct a new `BootInput` (a near instantaneous procedure).
+
+#### Functions
+
+The package exports the following core functions:
+* `dbootinds(...)::Vector{Vector{Int}}` -> Returns indices that can be used to index into the underlying data to obtain bootstrapped data. Note, each inner vector of the output corresponds to a single re-sample of the underlying data.
+* `dbootdata(...)::Vector{T_data}` -> Returns the bootstrapped data. Note that `T_data` will always be the type of the underlying dataset (i.e. the input `data`), and that the output vector will have length equal to `numresample`
+* `dbootlevel1(...)` -> 
+
+where f can be dbootinds, dbootdata, dbootlevel1, dbootlevel2, dboot, dbootvar, dbootconf, or optblocklength.
 
 
-#### Quick Start
+
+All core functions include the following signature as one of their methods:
+
+f(data, bi::BootInput)
+
+All core functions also include a keyword variant that calls the `BootInput` keyword constructor, hence the signature of these methods is:
+
+f(data ; blocklength::Number=0.0, numresample::Number=NUM_RESAMPLE, bootmethod::Symbol=:stationary, blmethod::Symbol=:dummy, flevel1::Function=mean, flevel2::Function=var, numobsperresample::Number=data_length(data))
+
+These functions also have other methods, which users are welcome to explore using Julia's `methods` function. However, it is envisaged that most users will use one of the two signatures described above.
 
 For those who simply want to bootstrap some parameter of the distribution of the statistic of interest, e.g. the variance of the test statistic, or confidence intervals for the test statistic, and don't want to do anything fancier, you can simply input a vector of observable data `x` into the `dBootstrap` function and then use the various keyword arguments to specify the details. A short-list (a full list is provided later in this document) of the most useful key-word arguments and their default values follows:
 * numResample::Int=1000, the number of bootstrap resamples to construct

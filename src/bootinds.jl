@@ -92,6 +92,7 @@ function dbootinds(bi::BootInput, bm::BootCircular)::Vector{Vector{Int}}
 end
 dbootinds(bi::BootInput, bm::BootTapered)::Vector{Vector{Int}} = dbootinds(bi, BootMoving())
 dbootinds(bi::BootInput)::Vector{Vector{Int}} = dbootinds(bi, bi.bootmethod)
+dbootinds(data, bi::BootInput)::Vector{Vector{Int}} = dbootinds(bi) #This method is included for consistency
 function dbootinds(data ; blocklength::Number=0.0, numresample::Number=NUM_RESAMPLE, bootmethod::Symbol=:stationary,
                     blmethod::Symbol=:dummy, flevel1::Function=mean, flevel2::Function=var, numobsperresample::Number=numobs)::Vector{Vector{Int}}
     return(dbootinds(BootInput(data, blocklength=blocklength, numresample=numresample, bootmethod=bootmethod, blmethod=blmethod, flevel1=flevel1, flevel2=flevel2, numobsperresample=numobsperresample)))
