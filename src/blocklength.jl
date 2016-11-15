@@ -71,9 +71,9 @@ function optblocklength{T<:Number}(x::AbstractVector{T}, blm::BLPP2002)::Float64
 	blocklength = max(blocklength, 1.0)
 	return(blocklength)
 end
-#Alternative inputs
-optblocklength{T<:Number}(x::AbstractVector{T}, bi::BootInput)::Float64 = optblocklength(x, bi.blmethod)
-optblocklength{T<:Number}(x::AbstractVector{T}, blm::Symbol)::Float64 = optblocklength(x, symboltoblmethod(blm))
+#Alternative inputs (note, optional third input is superfluous but is included for consistency with the multivariate case)
+optblocklength{T<:Number}(x::AbstractVector{T}, bi::BootInput, f::Function=median)::Float64 = optblocklength(x, bi.blmethod)
+optblocklength{T<:Number}(x::AbstractVector{T}, blm::Symbol, f::Function=median)::Float64 = optblocklength(x, symboltoblmethod(blm))
 #Multivariate inputs
 optblocklength{T<:Number}(x::Vector{Vector{T}}, blm::BLMethod, f::Function=median)::Float64 = f(Float64[ optblocklength(x[k], blm) for k = 1:length(x) ])
 optblocklength{T<:Number}(x::Vector{Vector{T}}, bi::BootInput, f::Function=median)::Float64 = f(Float64[ optblocklength(x[k], bi) for k = 1:length(x) ])
@@ -81,6 +81,13 @@ optblocklength{T<:Number}(x::Vector{Vector{T}}, blm::Symbol, f::Function=median)
 optblocklength{T<:Number}(x::AbstractMatrix{T}, blm::BLMethod, f::Function=median)::Float64 = f(Float64[ optblocklength(x[:, k], blm) for k = 1:size(x, 2) ])
 optblocklength{T<:Number}(x::AbstractMatrix{T}, bi::BootInput, f::Function=median)::Float64 = f(Float64[ optblocklength(x[:, k], bi) for k = 1:size(x, 2) ])
 optblocklength{T<:Number}(x::AbstractMatrix{T}, blm::Symbol, f::Function=median)::Float64 = f(Float64[ optblocklength(x[:, k], blm) for k = 1:size(x, 2) ])
+#Keyword inputs
+function optblocklength(data, f::Function=median ; blocklength::Number=0.0, numresample::Number=NUM_RESAMPLE, bootmethod::Symbol=:stationary,
+                 blmethod::Symbol=:dummy, flevel1::Function=mean, flevel2::Function=var, numobsperresample::Number=data_length(data))
+    return(optblocklength(data, BootInput(data, blocklength=blocklength, numresample=numresample, bootmethod=bootmethod, blmethod=blmethod, flevel1=flevel1, flevel2=flevel2, numobsperresample=numobsperresample), f))
+end
+
+
 #These two functions are used by several of the block-length selection procedures
 function blocklength_ma_and_cor{T<:Number}(x::AbstractVector{T})::Tuple{Int, Float64, Vector{Float64}}
 	(M, xVar, covVec) = bandwidth_politis_2003(x)
