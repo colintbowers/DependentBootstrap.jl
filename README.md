@@ -4,9 +4,7 @@ A module for the Julia language that implements several varieties of the depende
 
 ## WARNING
 
-I have recently upgraded and simplified this package for use with Julia v0.5. Unfortunately, this update includes an enormous number of breaking changes. On the plus side, I plan to register the latest iteration of this package in the coming week, and once that is done, there will be no further breaking changes without a significant period of deprecation warnings. Also, the changes have made the package *significantly* simpler, while losing very little of the flexibility.
-
-NOTE: Since the package is not currently registered, if you wish to use it in the meantime, please use `Pkg.clone("package URL here")`.
+I have recently upgraded and simplified this package for use with Julia v0.5. Unfortunately, this update includes an enormous number of breaking changes. On the plus side, the package is currently in the process of becoming officially registered, and after this, any breaking changes will come with deprecation warnings.
 
 ## Main features
 
