@@ -1,7 +1,7 @@
 DependentBootstrap.jl
 =====================
 
-[![Build Status](https://travis-ci.org/colintbowers/DependentBootstrap.jl.svg?branch=master)](https://travis-ci.org/colintbowers/DependentBootstrap.jl)
+(All tests are passing on my local machine - I'm in the process of configuring travis ci for the first time to work with this package so please bear with me)
 
 A module for the Julia language that implements several varieties of the dependent statistical bootstrap as well as the corresponding block-length selection procedures.
 
