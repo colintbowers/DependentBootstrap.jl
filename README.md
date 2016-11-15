@@ -1,4 +1,7 @@
-## DependentBootstrap
+DependentBootstrap.jl
+=====================
+
+[![Build Status](https://travis-ci.org/colintbowers/DependentBootstrap.jl.svg?branch=master)](https://travis-ci.org/colintbowers/DependentBootstrap.jl)
 
 A module for the Julia language that implements several varieties of the dependent statistical bootstrap as well as the corresponding block-length selection procedures.
 
