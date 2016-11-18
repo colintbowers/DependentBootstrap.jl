@@ -105,6 +105,8 @@ function blocklength_kernel_cov(covVec::AbstractVector{Float64}, M::Int)::Vector
 	return(kernelCovVec)
 end
 
+#Note, the following non-exported function is called in the ForecastEval package, so if you alter the function name you will
+#need to adjust that package too.
 """
     bandwidth_politis_2003{T<:Number}(x::AbstractVector{T})::Tuple{Int, Float64, Vector{Float64}}
 
