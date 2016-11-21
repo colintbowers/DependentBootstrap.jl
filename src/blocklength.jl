@@ -126,7 +126,7 @@ function bandwidth_politis_2003{T<:Number}(x::AbstractVector{T})::Tuple{Int, Flo
 	corBound = politis_c * sqrt(log(10, length(x)) / length(x)) #Note, use of log base 10 is deliberate and recommended in Politis (2003)
 	KCounter = 0
 	mHatFound = false
-	for k = 1:length(x)-2
+    for k = 1:length(x)-2
         #Add one to counter if bound is satisfied, otherwise reset counter to 0
         abs(corVec[k]) < corBound ? (KCounter += 1) : (KCounter = 0)
 		if KCounter >= K #We found K autocorrelations in a row that satisfy the bound, so break.
