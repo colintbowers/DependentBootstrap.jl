@@ -5,10 +5,6 @@ DependentBootstrap.jl
 
 A module for the Julia language that implements several varieties of the dependent statistical bootstrap as well as the corresponding block-length selection procedures.
 
-## WARNING
-
-I have recently upgraded and simplified this package for use with Julia v0.5. Unfortunately, this update includes an enormous number of breaking changes. On the plus side, the package is currently in the process of becoming officially registered, and after this, any breaking changes will come with deprecation warnings.
-
 ## Main features
 
 This module allows Julia users to estimate the distribution of a test statistic using any of several varieties of the dependent bootstrap.
@@ -34,7 +30,7 @@ The module is implemented entirely in Julia. Each bootstrap procedure and block-
 
 I have not included any procedures for bootstrapping confidence intervals in a linear regression framework. I believe that this functionality is better provided by a separate package (possibly GLM), that can use this package for the bootstrapping step.
 
-I also have not included support for the jackknife, wild bootstrap, or subsampling procedures. I would be quite open to pull requests that add these methods to the present package, but have not had time to implement them myself. Work is ongoing on including the tapered block bootstrap, and ideally, the package will also eventually include the extended tapered block bootstrap.
+I also have not included support for the jackknife, wild bootstrap, parametric bootstrap, or subsampling procedures. I would be quite open to pull requests that add these methods to the present package, but have not had time to implement them myself. Work is ongoing on including the tapered block bootstrap, and ideally, the package will also eventually include the extended tapered block bootstrap. If you are interested in working on any of these projects, please feel free to contact me.
 
 ## How to use this package
 
