@@ -52,8 +52,8 @@ x = Vector{Float64}[ temp_ar(n) for n = 1:4 ];
     setflevel2!(bi, fl2);
     srand(1234)
     y1 = dboot(x, bi)
-    @test isapprox(y1[1], 0.9654973555163422)
-    @test isapprox(y1[2], 1.7667019464583182)
+    @test isapprox(y1[1], -0.047408575390325614)
+    @test isapprox(y1[2], 1.0913695579833216)
     xMat = DependentBootstrap.vvtomat(x)
     srand(1234)
     y2 = dboot(x, bi)
