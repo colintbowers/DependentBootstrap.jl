@@ -21,11 +21,11 @@ dbootdata{T<:Number}(x::AbstractVector{T}, bi::BootInput)::Vector{Vector{T}} = d
 #Multivariate methods
 function dbootdata{T<:Number}(x::Vector{Vector{T}}, bi::BootInput, bm::BootMethod)::Vector{Vector{Vector{T}}}
     inds = dbootinds(bi)
-    return(Vector{Vector{T}}[ dbootdata(x[k], inds) for k = 1:length(x) ])
+    return Vector{Vector{T}}[ Vector{T}[ x[j][indsk] for j = 1:length(x) ] for indsk in inds ]
 end
 function dbootdata{T<:Number}(x::Matrix{T}, bi::BootInput, bm::BootMethod)::Vector{Matrix{T}}
     inds = dbootinds(bi)
-    return(Matrix{T}[ vvtomat(dbootdata(x[:, k], inds)) for k = 1:size(x, 2) ])
+    return(Matrix{T}[ x[indsk, :] for indsk in inds ])
 end
 function dbootdata{T<:Number}(x::Vector{Vector{T}}, bi::BootInput, bm::BootTapered)::Vector{Vector{Vector{T}}}
     error("Tapered block bootstrap method is still under construction. If you would like to contribute, please visit the packages github page.")
@@ -34,6 +34,7 @@ function dbootdata{T<:Number}(x::Matrix{T}, bi::BootInput, bm::BootTapered)::Vec
     error("Tapered block bootstrap method is still under construction. If you would like to contribute, please visit the packages github page.")
 end
 dbootdata{T<:Number}(x::Vector{Vector{T}}, bi::BootInput)::Vector{Vector{Vector{T}}} = dbootdata(x, bi, bi.bootmethod)
+dbootdata{T<:Number}(x::Matrix{T}, bi::BootInput)::Vector{Matrix{T}} = dbootdata(x, bi, bi.bootmethod)
 #Keyword method
 function dbootdata(data ; blocklength::Number=0.0, numresample::Number=NUM_RESAMPLE, bootmethod::Symbol=:stationary,
                  blmethod::Symbol=:dummy, flevel1::Function=mean, flevel2::Function=var, numobsperresample::Number=data_length(data))
@@ -54,12 +55,21 @@ function that implements w'cov(data)w, i.e. a quadratic form over the covariance
 """
 function dbootlevel1(data, bi::BootInput)
     rdata = dbootdata(data, bi)
-    try
+
+    println(typeof(rdata[1]))
+    println(size(rdata[1]))
+
         level1Out = [ bi.flevel1(rdata[s]) for s = 1:length(rdata) ]
         return(level1Out)
-    catch
-        error("The function $(bi.flevel1) stored in flevel1 in BootInput does not accept $(typeof(rdata[1])) as input. Please specify an appropriate level1 transformation function.")
-    end
+
+    # try
+    #     level1Out = [ bi.flevel1(rdata[s]) for s = 1:length(rdata) ]
+    #     return(level1Out)
+    # catch
+    #     error("The function $(bi.flevel1) stored in flevel1 in BootInput does not accept $(typeof(rdata[1])) as input. Please specify an appropriate level1 transformation function.")
+    # end
+
+
     error("Logic fail in dbootlevel1. Please file an issue")
 end
 function dbootlevel1(data ; blocklength::Number=0.0, numresample::Number=NUM_RESAMPLE, bootmethod::Symbol=:stationary,
