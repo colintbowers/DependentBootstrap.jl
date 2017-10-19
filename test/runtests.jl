@@ -9,7 +9,7 @@ function temp_ar(seedInt::Int)
     srand(seedInt)
     N = 100
     e = randn(N)
-    x = Array(Float64, N)
+    x = Array{Float64}(N)
     x[1] = 0.0
     for n = 2:N
         x[n] = 0.8 * x[n-1] + e[n]

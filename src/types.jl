@@ -1,15 +1,15 @@
 
 #Two abstract types to nest all bootstrap method types and block length selection method types
-abstract BootMethod
-abstract BLMethod
+abstract type BootMethod end
+abstract type BLMethod end
 
 #Bootstrap method type definitions
-type BootIID <: BootMethod ; end
-type BootStationary <: BootMethod ; end
-type BootMoving <: BootMethod ; end
-type BootNoOverlap <: BootMethod ; end
-type BootCircular <: BootMethod ; end
-type BootTapered <: BootMethod
+mutable struct BootIID <: BootMethod ; end
+mutable struct BootStationary <: BootMethod ; end
+mutable struct BootMoving <: BootMethod ; end
+mutable struct BootNoOverlap <: BootMethod ; end
+mutable struct BootCircular <: BootMethod ; end
+mutable struct BootTapered <: BootMethod
 	kernelfunction::Symbol
 	function BootTapered(kernelfunction::Symbol)
 		!(kernelfunction == :trap || kernelfunction == :smooth) && error("Invalid kernel function symbol of $(kernelfunction) for tapered block bootstrap.")
@@ -18,7 +18,7 @@ type BootTapered <: BootMethod
 end
 
 #Block length method type definitions
-type BLPP2002 <: BLMethod
+mutable struct BLPP2002 <: BLMethod
 	bootmethod::Symbol
 	bandwidthmethod::Symbol
 	kernelfunction::Symbol
@@ -29,7 +29,7 @@ type BLPP2002 <: BLMethod
 		new(bootmethod, bandwidthmethod, kernelfunction)
 	end
 end
-type BLPPW2009 <: BLMethod
+mutable struct BLPPW2009 <: BLMethod
 	bootmethod::Symbol
 	bandwidthmethod::Symbol
 	function BLPPW2009( bootmethod::Symbol, bandwidthmethod::Symbol)
@@ -61,17 +61,17 @@ BLPPW2009(bootmethod::Symbol) = BLPPW2009(bootmethod, :p2003)
 
 #Get type based on symbol input
 function symboltobootmethod(s::Symbol)::BootMethod
-    s == :iid && return(BootIID())
-    s == :stationary && return(BootStationary())
-    s == :moving && return(BootMoving())
-    s == :nooverlap && return(BootNoOverlap())
-    s == :circular && return(BootCircular())
-    s == :tapered && return(BootTapered())
+    s == :iid && return (BootIID())
+    s == :stationary && return (BootStationary())
+    s == :moving && return (BootMoving())
+    s == :nooverlap && return (BootNoOverlap())
+    s == :circular && return (BootCircular())
+    s == :tapered && return (BootTapered())
     error("Invalid input symbol of $(s)")
 end
 function symboltoblmethod(s::Symbol)::BLMethod
-    s == :pp2002 && return(BLPP2002())
-    s == :ppw2009 && return(BLPPW2009())
+    s == :pp2002 && return (BLPP2002())
+    s == :ppw2009 && return (BLPPW2009())
     error("Invalid input symbol of $(s)")
 end
 
@@ -82,7 +82,7 @@ bootmethodtoblmethod(s::Symbol)::BLMethod = bootmethodtoblmethod(symboltobootmet
 
 
 #BootInput type definition. Note, almost all core functions accept this as input
-type BootInput
+mutable struct BootInput
 	numobs::Int #Number of observations in the dataset that is to be bootstrapped
     blocklength::Float64 #Block length for bootstrapping
     numresample::Int #Number of resamples
@@ -104,14 +104,14 @@ function BootInput(data ; blocklength::Number=0.0, numresample::Number=NUM_RESAM
                     blmethod::Symbol=:dummy, flevel1::Function=mean, flevel2::Function=var, numobsperresample::Number=data_length(data))::BootInput
 	blmethod == :dummy ? (blmethod = bootmethodtoblmethod(bootmethod)) : (blmethod = symboltoblmethod(blmethod)) #auto-adjust blmethod if not specified
 	blocklength <= 0.0 && (blocklength = optblocklength(data, blmethod))
-    return(BootInput(data_length(data), Float64(blocklength), Int(numresample), symboltobootmethod(bootmethod), blmethod, flevel1, flevel2, Int(numobsperresample)))
+    return BootInput(data_length(data), Float64(blocklength), Int(numresample), symboltobootmethod(bootmethod), blmethod, flevel1, flevel2, Int(numobsperresample))
 end
 
 #Local function for getting the number of observations in a dataset
-data_length{T}(x::AbstractVector{T})::Int = length(x)
-data_length{T}(x::AbstractMatrix{T})::Int = size(x, 1)
-function data_length{T}(x::Vector{Vector{T}})::Int
+(data_length(x::AbstractVector{T})::Int) where {T} = length(x)
+(data_length(x::AbstractMatrix{T})::Int) where {T} = size(x, 1)
+function data_length(x::Vector{Vector{T}})::Int where {T}
 	length(x) == 0 && error("Empty input dataset")
-    any(length(x[1]) .!= Int[ length(x[k]) for k in eachindex(x) ]) && error("Inner vector length mismatch in input data")
-	return(length(x[1]))
+    any(length(x[1]) .!= [ length(y) for y in x ]) && error("Inner vector length mismatch in input data")
+	return length(x[1])
 end

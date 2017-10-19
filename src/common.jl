@@ -3,7 +3,7 @@
 Base.show(io::IO, bm::BootMethod) = string(shortsymbol(bm))
 Base.show(io::IO, blm::BLMethod) = string(shortsymbol(blm))
 function show(io::IO, b::BootInput)
-	println(io, "dependent bootstrap input:")
+	println(io, "Dependent bootstrap input:")
 	println(io, "    number of observations in dataset = " * string(b.numobs))
     println(io, "    current block length = " * string(b.blocklength))
 	println(io, "    number of resamples = " * string(b.numresample))

@@ -1,6 +1,6 @@
 
 #Local function used to transform data via appropriate influence functions for the case where bootstrap method is tapered block
-function apply_influence_function{T<:Number}(x::Vector{T}, bi::BootInput)::Vector{Float64}
+function apply_influence_function(x::Vector{T}, bi::BootInput)::Vector{Float64} where {T<:Number}
 	if bi.flevel1 == mean
 		x_if = x - mean(x, 1)
 	elseif bi.flevel1 == sum
@@ -10,7 +10,7 @@ function apply_influence_function{T<:Number}(x::Vector{T}, bi::BootInput)::Vecto
 	end
 	return(x_if)
 end
-apply_influence_function{T<:Number}(x::Vector{Vector{T}}, bi::BootInput)::Vector{Vector{Float64}} = Vector{Float64}[ apply_influence_function(x[k], bi) for k = 1:length(x) ]
+(apply_influence_function(x::Vector{Vector{T}}, bi::BootInput)::Vector{Vector{Float64}}) where {T<:Number} = Vector{Float64}[ apply_influence_function(x[k], bi) for k = 1:length(x) ]
 
 #Local function used to weight data for the case where bootstrap method is tapered block
 function dboot_kernel_weights(bi::BootInput)::Vector{Float64}
@@ -21,7 +21,7 @@ function dboot_kernel_weights(bi::BootInput)::Vector{Float64}
     kernelWeight .*= normTerm
 	return(kernelWeight)
 end
-function dboot_weight!{T<:Number}(x::Vector{Vector{T}}, bi::BootInput)::Vector{Vector{Float64}}
+function dboot_weight!(x::Vector{Vector{T}}, bi::BootInput)::Vector{Vector{Float64}} where {T<:Number}
     bL = Int(ceil(bi.blocklength))
     bL <= 1 && return(x)
     w = dboot_kernel_weights(bm)
