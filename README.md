@@ -5,6 +5,10 @@ DependentBootstrap.jl
 
 A module for the Julia language that implements several varieties of the dependent statistical bootstrap as well as the corresponding block-length selection procedures.
 
+## News
+
+This package has been updated to be compatible with julia v0.6 (and should also work on v0.7 as of 2017-10-19 with no deprecation warnings). If you are running v0.5, you will need to use `Pkg.pin("DependentBootstrap", v"0.0.1")` at the REPL.  
+
 ## Main features
 
 This module allows Julia users to estimate the distribution of a test statistic using any of several varieties of the dependent bootstrap.
