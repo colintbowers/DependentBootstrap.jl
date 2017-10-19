@@ -1,18 +1,27 @@
+"""
+Module for the DependentBootstrap, by Colin T Bowers \n
+\n
+Implemented bootstrap methods: \n
+	- IID \n
+	- Stationary \n
+	- Moving Block \n
+	- Circular Block \n
+	- NoOverlapBlock \n
+\n
+Implemented block length selection procedures: \n
+	- Patton, Politis, and White (2009) Correction to Automatic Block Length Selection For The Dependent Bootstrap \n
+	- Paparoditis and Politis (2002) The Tapered Block Bootstrap For General Statistics From Stationary Sequences \n
+\n
+Accepted input dataset types: \n
+	- Vector{<:Number}
+	- Matrix{<:Number}
+	- Vector{Vector{<:Number}}
+\n
+Additional input dataset types are easily added. Please open an issue on at https://github.com/colintbowers/DependentBootstrap.jl
+\n
+This package has an MIT license. Please see associated LICENSE.md file for more detail.
+"""
 module DependentBootstrap
-#-----------------------------------------------------------
-#PURPOSE
-#	Colin T. Bowers module for dependent bootstraps
-#NOTES
-#	Valid input datasets are currently:
-#		-AbstractVector{T<:Number}
-#		-Vector{Vector{T<:Number}}
-#		-AbstractMatrix{T<:Number}
-#	To extend the package to a new type of dataset, you will need to add new methods to the following functions:
-#		data_length (in types.jl)
-#		dbootdata (in core.jl) (where output must be of type Vector{typeof(inputdata)})
-#		optblocklength (in blocklength.jl)
-#		several functions in tapered.jl IF you want to use tapered block bootstrap (which is actually not operational yet)
-#-----------------------------------------------------------
 
 using 	StatsBase, Distributions
 
