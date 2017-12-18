@@ -54,7 +54,10 @@ x = Vector{Float64}[ temp_ar(n) for n = 1:4 ];
     y1 = dboot(x, bi)
     @test isapprox(y1[1], -0.047408575390325614)
     @test isapprox(y1[2], 1.0913695579833216)
-    xMat = DependentBootstrap.vvtomat(x)
+    xMat = Array{Float64}(length(x[1]), length(x))
+    for k = 1:length(x)
+        xMat[:, k] = x[k]
+    end
     srand(1234)
     y2 = dboot(x, bi)
     @test isapprox(y1[1], y2[1])

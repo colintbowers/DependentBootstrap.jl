@@ -1,5 +1,5 @@
 """
-Module for the DependentBootstrap, by Colin T Bowers \n
+Module for dependent bootstrap procedures, by Colin T Bowers \n
 \n
 Implemented bootstrap methods: \n
 	- IID \n

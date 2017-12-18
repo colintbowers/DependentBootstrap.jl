@@ -1,46 +1,64 @@
 
 """
-    dbootdata(data, bi::BootInput) \n
-    dbootdata(data; kwargs...) \n
+    apply_inds_to_data(data::T, inds::Vector{Int})::T
+    apply_inds_to_data(data::T, inds::Vector{Vector{Int}})::Vector{T}
 
-Get dependent bootstrap resampled data for the input dataset using the bootstrap methodology defined in BootInput. \n
-There is also a keyword variant that calls the keyword constructor for BootInput. \n
-Note, this function should always have output type Vector{typeof(x)}.
+Apply the output from a call to dbootinds_one to data to obtain a single,
+resampled dataset. \n
+
+NOTE 1: If adding a new type for data to this module, this function must be
+extended to the new type. Current accepted data types are: \n
+    - Vector{<:Number} \n
+    - Matrix{<:Number} \n
+    - Vector{Vector{<:Number}} \n
+
+NOTE 2: I deliberately do not build views into data, since the level 1 bootstrap
+function is typically able to take advantage of BLAS routines (eg mean, var, etc),
+and in these cases it will be more efficient to build the new, resampled data
+sequentially in memory.
 """
-(dbootdata(x::AbstractVector{T}, inds_vv::Vector{Vector{Int}})::Vector{Vector{T}}) where {T<:Number} = [ x[inds] for inds in inds_vv ]
-(dbootdata(x::AbstractVector{T}, bi::BootInput, bm::BootMethod)::Vector{Vector{T}}) where {T<:Number} = dbootdata(x, dbootinds(bi))
-function dbootdata(x::AbstractVector{T}, bi::BootInput, bm::BootTapered)::Vector{Vector{Float64}} where {T<:Number}
-    error("Tapered block bootstrap method is still under construction. If you would like to contribute, please visit the packages github page.")
-    error("Tapered block bootstrap currently assumes that input data is of type Float64")
-    xOut = dbootdata(apply_influence_function(x), dbootinds(bi))
-    dboot_weight!(xOut, bi)
-    return(xOut)
+(apply_inds_to_data(data::Vector{T}, inds::Vector{Int})::Vector{T}) where {T<:Number} = data[inds]
+(apply_inds_to_data(data::Matrix{T}, inds::Vector{Int})::Matrix{T}) where {T<:Number} = data[inds, :]
+(apply_inds_to_data(data::Vector{Vector{T}}, inds::Vector{Int})::Vector{Vector{T}}) where {T<:Number} = [ y[inds] for y in data ]
+
+"""
+    dbootdata_one(data::T, bi::BootInput)::T \n
+    dbootdata_one(data::T; kwargs...)::T \n
+
+Get a single resampled dataset of the input data using the dependent boostrap
+methodology defined in BootInput. \n
+Note, the output type will always be the same as the type of the input data.
+"""
+(dbootdata_one(data::TD, bi::BootInput, bm::TM)::TD) where {TD, TM<:BootMethod} = apply_inds_to_data(data, dbootinds_one(bi))
+function dbootdata_one_infl(data_infl::TD, bi::BootInput, bm::BootTapered)::TD where {TD}
+    error("The tapered block bootstrap is currently not available in this package. Users interested in contributing should check the package github page.")
+    dataout = apply_inds_to_data(data_infl, dbootinds_one(bi))
+    dboot_weight!(dataout, bi)
+    return dataout
 end
-#Multivariate methods
-function dbootdata(x::Vector{Vector{T}}, bi::BootInput, bm::BootMethod)::Vector{Vector{Vector{T}}} where {T<:Number}
-    inds = dbootinds(bi)
-    return Vector{Vector{T}}[ Vector{T}[ x[j][indsk] for j = 1:length(x) ] for indsk in inds ]
+(dbootdata_one(data::T, bi::BootInput, bm::BootTapered)::T) where {T} = dbootdata_one_infl(apply_influence_function(data), bi, bm)
+(dbootdata_one(data::T, bi::BootInput)::T) where {T} = dbootdata_one(data, bi, bi.bootmethod)
+
+"""
+dbootdata(data::T, bi::BootInput)::Vector{T} \n
+dbootdata(data::T; kwargs...)::Vector{T} \n
+
+Get the resampled datasets of the input data using the dependent bootstrap
+methodology defined in BootInput. \n
+There is also a keyword variant that calls the keyword constructor for BootInput. \n
+Note, this function should always have output type Vector{T}.
+"""
+(dbootdata(data::TD, bi::BootInput, bm::TM)::Vector{T}) where {TD, TM<:BootMethod} = [ apply_inds_to_data(data, dbootinds_one(bi)) for j = 1:bi.numresample ]
+function dbootdata(data::T, bi::BootInput, bm::BootTapered)::Vector{T} where {T}
+    data_infl = apply_influence_function(data)
+    return [ dbootdata_one_infl(data_infl, bi, bm) for j = 1:bi.numresample ]
 end
-function dbootdata(x::Matrix{T}, bi::BootInput, bm::BootMethod)::Vector{Matrix{T}} where {T<:Number}
-    inds = dbootinds(bi)
-    return(Matrix{T}[ x[indsk, :] for indsk in inds ])
+(dbootdata(data::T, bi::BootInput)::Vector{T}) where {T} = dbootdata(data, bi, bi.bootmethod)
+function dbootdata(data::T ; blocklength::Number=0.0, numresample::Number=NUM_RESAMPLE, bootmethod::Symbol=:stationary,
+                 blmethod::Symbol=:dummy, flevel1::Function=mean, flevel2::Function=var, numobsperresample::Number=data_length(data))::T where {T}
+    return dbootdata(data, BootInput(data, blocklength=blocklength, numresample=numresample, bootmethod=bootmethod, blmethod=blmethod, flevel1=flevel1, flevel2=flevel2, numobsperresample=numobsperresample))
 end
-function dbootdata(x::Vector{Vector{T}}, bi::BootInput, bm::BootTapered)::Vector{Vector{Vector{T}}} where {T<:Number}
-    error("Tapered block bootstrap method is still under construction. If you would like to contribute, please visit the packages github page.")
-end
-function dbootdata(x::Matrix{T}, bi::BootInput, bm::BootTapered)::Vector{Matrix{T}} where {T<:Number}
-    error("Tapered block bootstrap method is still under construction. If you would like to contribute, please visit the packages github page.")
-end
-#Core method
-dbootdata(x, bi::BootInput) = dbootdata(x, bi, bi.bootmethod)
-#Keyword method
-function dbootdata(data ; blocklength::Number=0.0, numresample::Number=NUM_RESAMPLE, bootmethod::Symbol=:stationary,
-                 blmethod::Symbol=:dummy, flevel1::Function=mean, flevel2::Function=var, numobsperresample::Number=data_length(data))
-    return (dbootdata(data, BootInput(data, blocklength=blocklength, numresample=numresample, bootmethod=bootmethod, blmethod=blmethod, flevel1=flevel1, flevel2=flevel2, numobsperresample=numobsperresample)))
-end
-#Local functions for converting Vector{Vector} to Matrix and back
-(vvtomat(x::Vector{Vector{T}})::Matrix{T}) where {T} = T[ x[m][n] for n = 1:data_length(x), m = 1:length(x) ]
-(mattovv(x::Matrix{T})::Vector{Vector{T}}) where {T} = Vector{T}[ x[:, m] for m = 1:size(x, 2) ]
+
 
 """
     dbootlevel1(data, bi::BootInput) \n
@@ -58,16 +76,7 @@ For example, if data is a Vector{T<:Number} then bi.flevel1 might be the functio
 A more complicated example: if data is Matrix{T<:Number} then bi.flevel1 might be an anonymous
 function that implements w'cov(data)w, i.e. a quadratic form over the covariance matrix of the data
 """
-function dbootlevel1(data, bi::BootInput)
-    rdata = dbootdata(data, bi)
-    try
-        lvl1out = [ bi.flevel1(y) for y in rdata ]
-        return lvl1out
-    catch
-        error("The function $(bi.flevel1) stored in flevel1 in BootInput does not accept $(typeof(rdata[1])) as input. Please specify an appropriate level1 transformation function.")
-    end
-    error("Logic fail in dbootlevel1. Please file an issue")
-end
+dbootlevel1(data, bi::BootInput) = [ bi.flevel1(dbootdata_one(data, bi)) for j = 1:bi.numresample ]
 function dbootlevel1(data ; blocklength::Number=0.0, numresample::Number=NUM_RESAMPLE, bootmethod::Symbol=:stationary,
                  blmethod::Symbol=:dummy, flevel1::Function=mean, flevel2::Function=var, numobsperresample::Number=data_length(data))
     return (dbootlevel1(data, BootInput(data, blocklength=blocklength, numresample=numresample, bootmethod=bootmethod, blmethod=blmethod, flevel1=flevel1, flevel2=flevel2, numobsperresample=numobsperresample)))
@@ -88,16 +97,7 @@ the output will be a bootstrapped 95% confidence interval for the level1 statist
 
 A keyword method that calls the keyword constructor of BootInput is also available.
 """
-function dboot(data, bi::BootInput)
-    lvl1data = dbootlevel1(data, bi)
-    try
-        lvl2out = bi.flevel2(lvl1data)
-        return lvl2out
-    catch
-        error("The function $(bi.flevel2) stored in flevel2 in BootInput does not accept $(typeof(lvl1data)) as input. Please specify an appropriate level2 transformation function.")
-    end
-    error("Logic fail in dboot. Please file an issue")
-end
+dboot(data, bi::BootInput) = bi.flevel2(dbootlevel1(data, bi))
 function dboot(data ; blocklength::Number=0.0, numresample::Number=NUM_RESAMPLE, bootmethod::Symbol=:stationary,
                  blmethod::Symbol=:dummy, flevel1::Function=mean, flevel2::Function=var, numobsperresample::Number=data_length(data))
     return(dboot(data, BootInput(data, blocklength=blocklength, numresample=numresample, bootmethod=bootmethod, blmethod=blmethod, flevel1=flevel1, flevel2=flevel2, numobsperresample=numobsperresample)))
