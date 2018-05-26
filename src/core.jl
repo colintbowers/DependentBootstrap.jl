@@ -48,14 +48,15 @@ methodology defined in BootInput. \n
 There is also a keyword variant that calls the keyword constructor for BootInput. \n
 Note, this function should always have output type Vector{T}.
 """
-(dbootdata(data::TD, bi::BootInput, bm::TM)::Vector{T}) where {TD, TM<:BootMethod} = [ apply_inds_to_data(data, dbootinds_one(bi)) for j = 1:bi.numresample ]
+(dbootdata(data::TD, bi::BootInput, bm::TM)::Vector{TD}) where {TD, TM<:BootMethod} = [ apply_inds_to_data(data, dbootinds_one(bi)) for j = 1:bi.numresample ]
 function dbootdata(data::T, bi::BootInput, bm::BootTapered)::Vector{T} where {T}
     data_infl = apply_influence_function(data)
     return [ dbootdata_one_infl(data_infl, bi, bm) for j = 1:bi.numresample ]
 end
 (dbootdata(data::T, bi::BootInput)::Vector{T}) where {T} = dbootdata(data, bi, bi.bootmethod)
 function dbootdata(data::T ; blocklength::Number=0.0, numresample::Number=NUM_RESAMPLE, bootmethod::Symbol=:stationary,
-                 blmethod::Symbol=:dummy, flevel1::Function=mean, flevel2::Function=var, numobsperresample::Number=data_length(data))::T where {T}
+                 blmethod::Symbol=:dummy, flevel1::Function=mean, flevel2::Function=var,
+                 numobsperresample::Number=data_length(data))::Vector{T} where {T}
     return dbootdata(data, BootInput(data, blocklength=blocklength, numresample=numresample, bootmethod=bootmethod, blmethod=blmethod, flevel1=flevel1, flevel2=flevel2, numobsperresample=numobsperresample))
 end
 
