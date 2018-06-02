@@ -19,6 +19,12 @@ sequentially in memory.
 """
 (apply_inds_to_data(data::Vector{T}, inds::Vector{Int})::Vector{T}) where {T<:Number} = data[inds]
 (apply_inds_to_data(data::Matrix{T}, inds::Vector{Int})::Matrix{T}) where {T<:Number} = data[inds, :]
+@require TimeSeries begin
+    function (apply_inds_to_data(data::TimeSeries.TimeArray{T}, inds::Vector{Int})::TimeSeries.TimeArray{T}) where {T<:Number}
+        TimeSeries.TimeArray(TimeSeries.timestamp(data), apply_inds_to_data(values(data), inds), 
+                             TimeSeries.colnames(data))
+    end
+end
 (apply_inds_to_data(data::Vector{Vector{T}}, inds::Vector{Int})::Vector{Vector{T}}) where {T<:Number} = [ y[inds] for y in data ]
 
 """

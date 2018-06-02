@@ -23,6 +23,7 @@ This package has an MIT license. Please see associated LICENSE.md file for more 
 """
 module DependentBootstrap
 
+using 	Requires
 using 	StatsBase, Distributions
 
 import 	Base: 	show

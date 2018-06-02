@@ -110,6 +110,7 @@ end
 #Local function for getting the number of observations in a dataset
 (data_length(x::AbstractVector{T})::Int) where {T} = length(x)
 (data_length(x::AbstractMatrix{T})::Int) where {T} = size(x, 1)
+@require TimeSeries (data_length(x::TimeSeries.TimeArray{T})::Int) where {T} = length(x)
 function data_length(x::Vector{Vector{T}})::Int where {T}
 	length(x) == 0 && error("Empty input dataset")
     any(length(x[1]) .!= [ length(y) for y in x ]) && error("Inner vector length mismatch in input data")
