@@ -42,6 +42,7 @@ function optblocklength(x::AbstractVector{T}, blm::BLPPW2009)::Float64 where {T<
 	blocklength = max(blocklength, 1.0)
 	return blocklength
 end
+
 #Block length selection method of Paparoditis, Politis (2002) "The Tapered Block Bootstrap for General Statistics From Stationary Sequences"
 function optblocklength(x::AbstractVector{T}, blm::BLPP2002)::Float64 where {T<:Number}
 	length(x) < 3 && error("You must have at least 3 observations to estimate block length")
@@ -72,6 +73,10 @@ end
 #Alternative inputs (note, optional third input is superfluous but is included for consistency with the multivariate case)
 (optblocklength(x::AbstractVector{T}, bi::BootInput, f::Function=median)::Float64) where {T<:Number} = optblocklength(x, bi.blmethod)
 (optblocklength(x::AbstractVector{T}, blm::Symbol, f::Function=median)::Float64) where {T<:Number} = optblocklength(x, symboltoblmethod(blm))
+@require TimeSeries begin
+    optblocklength(x::TimeSeries.TimeArray{T}, method) where T = 
+        optblocklength(values(x), method)
+end
 #Multivariate inputs
 (optblocklength(x::Vector{Vector{T}}, method, f::Function=median)::Float64) where {T<:Number} = f([ optblocklength(y, method) for y in x ])
 (optblocklength(x::AbstractMatrix{T}, method, f::Function=median)::Float64) where {T<:Number} = f([ optblocklength(x[:, k], method) for k = 1:size(x, 2) ])
