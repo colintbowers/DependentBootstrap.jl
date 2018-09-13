@@ -74,23 +74,23 @@ where `data` is the users underlying dataset, `kwargs` is a collection of keywor
 * `TimeArray`
 
 Of the two core methods, most users will want the `kwargs` method. A list of valid keyword arguments and their default values follows:
-* blocklength         <- Block length for bootstrapping procedure. The default value is 0. Set to <= 0 to auto-estimate the optimal block length from the dataset. Float64 inputs are allowed.
-* numresample         <- Number of times to resample the input dataset. The default value is the module constant NUM_RESAMPLE, currently set to 1000.
-* bootmethod          <- Bootstrapping methodology to use. The default value is the Symbol :stationary (for the stationary bootstrap).
-* blocklengthmethod   <- Block length selection procedure to use if user wishes to auto-estimate the block length. Default value is the Symbol :ppw2009 (use the method described in Patton, Politis, and White (2009)).
-* flevel1             <- A function that converts the input dataset to the estimator that the user wishes to bootstrap. The default value is `mean`.
-* flevel2             <- A function that converts a vector of estimators constructed by flevel1 into a distributional parameter. The default value is `var`.
-* numobsperresample   <- Number of observations to be drawn (with replacement) per resample. The default value is the number of observations in the dataset (the vast majority of users will want this default value).
-* fblocklengthcombine <- A function for converting a Vector{Float64} of estimated blocklengths to a single Float64 blocklength estimate, which is necessary when the input dataset is a multivariate type. The default value is `median`.
+* `blocklength`         <- Block length for bootstrapping procedure. The default value is `0`. Set to <= 0 to auto-estimate the optimal block length from the dataset. `Float64` inputs are allowed.
+* `numresample`         <- Number of times to resample the input dataset. The default value is the module constant `NUM_RESAMPLE`, currently set to `1000`.
+* `bootmethod`          <- Bootstrapping methodology to use. The default value is `:stationary` (for the stationary bootstrap).
+* `blocklengthmethod`   <- Block length selection procedure to use if user wishes to auto-estimate the block length. Default value is `:ppw2009` (use the method described in Patton, Politis, and White (2009)).
+* `flevel1`             <- A function that converts the input dataset to the estimator that the user wishes to bootstrap. The default value is `mean`.
+* `flevel2`             <- A function that converts a vector of estimators constructed by `flevel1` into a distributional parameter. The default value is `var`.
+* `numobsperresample`   <- Number of observations to be drawn (with replacement) per resample. The default value is the number of observations in the dataset (the vast majority of users will want this default value).
+* `fblocklengthcombine` <- A function for converting a `Vector{Float64}` of estimated blocklengths to a single `Float64` blocklength estimate, which is necessary when the input dataset is a multivariate type. The default value is `median`.
 
-A list of acceptable keyword arguments for bootmethod and blocklengthmethod follows. Note you can use either `String` or `Symbol` when specifying these arguments. For bootmethod we have:
+A list of acceptable keyword arguments for `bootmethod` and `blocklengthmethod` follows. Note you can use either `String` or `Symbol` when specifying these arguments. For `bootmethod` we have:
 * `:iid` or `:efron`                     <- IID bootstrap
 * `:stationary`                          <- Stationary bootstrap
 * `:movingblock` or `:moving`            <- Moving block bootstrap
 * `:nonoverlappingblock` or `:nooverlap` <- Nonoverlapping block bootstrap
 * `:circularblock` or `circular`         <- Circular block bootstrap
 
-For blocklengthmethod we have:
+For `blocklengthmethod` we have:
 * `:ppw2009` <- Block length selection method of Patton, Politis, and White (2009)
 
 Acceptable arguments can also be examined interactively by examining the keys of the module dictionaries `BOOT_METHOD_DICT` and `BLOCKLENGTH_METHOD_DICT`.
