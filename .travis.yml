@@ -5,9 +5,12 @@ os:
   - osx
 julia:
   - 1.0
+- nightly
+matrix:
+  allow_failures:
+    - julia: nightly
 notifications:
-  email: false
-# uncomment the following lines to override the default test script
+email: false# uncomment the following lines to override the default test script
 #script:
 #  - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
 #  - julia -e 'Pkg.clone(pwd()); Pkg.build("DependentBootstrap"); Pkg.test("DependentBootstrap"; coverage=true)'
