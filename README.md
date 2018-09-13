@@ -7,7 +7,7 @@ A module for the Julia language that implements several varieties of the depende
 
 ## News
 
-This package has been updated to be compatible with julia v0.6 (and should also work on v0.7 as of 2017-10-19 with no deprecation warnings). If you are running v0.5, you will need to use `Pkg.pin("DependentBootstrap", v"0.0.1")` at the REPL.  
+This package is compatible with julia v1.0+. If you are running v0.6, you will need to use `Pkg.pin("DependentBootstrap", v"0.1.1")` at the REPL, and if you are running v0.5, use `Pkg.pin("DependentBootstrap", v"0.0.1")`. Compability with versions before v0.5 is not available.  
 
 ## Main features
 
@@ -20,90 +20,86 @@ The following bootstrap methods are implemented:
 * the circular block bootstrap proposed in Politis, Romano (1992) "A circular block resampling procedure for stationary data", and
 * the non-overlapping block bootstrap described in Lahiri (1999) *Resampling Methods for Dependent Data* (this method is not usually used and is included mainly as a curiosity).
 
-Some work has been done to implement the tapered block bootstrap of Paparoditis, Politis (2002) "The tapered block bootstrap for general statistics from stationary sequences", but, unfortunately it is not yet complete.
-
 The module also implements the following block length selection procedures:
-* the block length selection procedure proposed in Politis, White (2004) "Automatic Block Length Selection For The Dependent Bootstrap", including the correction provided in Patton, Politis, and White (2009), and
-* the block length selection procedure proposed in Paparoditis, Politis (2002) "The tapered block bootstrap for general statistics from stationary sequences".
+* the block length selection procedure proposed in Politis, White (2004) "Automatic Block Length Selection For The Dependent Bootstrap", including the correction provided in Patton, Politis, and White (2009)
 
-Bandwidth selection for these block length procedures is implemented using the method proposed in Politis (2003) "Adaptive Bandwidth Choice".
+Bandwidth selection for the block length procedures is implemented using the method proposed in Politis (2003) "Adaptive Bandwidth Choice".
 
-The module is implemented entirely in Julia. Each bootstrap procedure and block-length selection procedure is implemented as its own type. Various functions then operate on these types via multiple dispatch in order to return bootstrap indices, data, statistics, or distribution parameter estimates, as well as optimal block length estimates. These functions operate on both univariate and multivariate datasets.
+Some work has been done to implement the tapered block bootstrap of Paparoditis, Politis (2002) "The tapered block bootstrap for general statistics from stationary sequences", along with corresponding block-length selection procedures, but it is not yet complete.
+
+The module is implemented entirely in Julia.
 
 ## What this package does not include
 
 I have not included any procedures for bootstrapping confidence intervals in a linear regression framework. I believe that this functionality is better provided by a separate package (possibly GLM), that can use this package for the bootstrapping step.
 
-I also have not included support for the jackknife, wild bootstrap, parametric bootstrap, or subsampling procedures. I would be quite open to pull requests that add these methods to the present package, but have not had time to implement them myself. Work is ongoing on including the tapered block bootstrap, and ideally, the package will also eventually include the extended tapered block bootstrap. If you are interested in working on any of these projects, please feel free to contact me.
+I also have not included support for the jackknife, wild bootstrap, parametric bootstrap, or subsampling procedures. I would be quite open to pull requests that add these methods to the present package, but have not had time to implement them myself. Work is ongoing to include the tapered block bootstrap, and ideally, the package will also eventually include the extended tapered block bootstrap. If you are interested in working on any of these projects, please feel free to contact me.
 
 ## How to use this package
 
 #### Installation
 
-This package should be added using `Pkg.add("DependentBootstrap")`, and can then be called with `using DependentBootstrap`. The package only has two dependencies (currently): StatsBase and Distributions. Support for DataFrames may be added in the future, depending on demand (the package is structured so that this will be a relatively trivial addition)
+This package should be added using `using Pkg ; Pkg.add("DependentBootstrap")`, and can then be called with `using DependentBootstrap`. The package has three core dependencies: `StatsBase`, `Distributions`, and `Requires`. Support for datatypes defined in `DataFrames` and `TimeSeries` is also included, but these packages are lazily-loaded by Requires only when needed, and so are not explicit dependencies.
 
 #### Terminology
 
-In what follows, I use the terminology from Lahiri (1999) *Resampling Methods for Dependent Data* and refer to the underlying test statistic of interest as a *level 1 statistic*, and the distribution parameter of the test statistic that is of interest as a *level 2 parameter*. For example, the user might be interested in the variance of the sample mean estimator, in which case the level 1 statistic is the sample mean, and the level 2 parameter is the variance.
+In what follows, I use the terminology from Lahiri (1999) *Resampling Methods for Dependent Data* and refer to the underlying test statistic of interest as a *level 1 statistic*, and the distribution parameter of the test statistic that is of interest as a *level 2 parameter*. For example, the user might have some dataset `x` of type `T_data`, and be interested in the variance of the sample mean of `x`. In this case, the level 1 statistic is the sample mean function `mean`, and the level 2 parameter is the sample variance function `var`.
 
-#### Core Type
+I use `T_data` to refer to the type of the users dataset, `T_level1` to refer to the output type obtained by applying the level 1 statistic function to the dataset, and `T_level2` to refer to the output type obtained by applying the level 2 statistic to a `Vector{T_level1}` (i.e. a vector of resampled level 1 statistics).
 
-The package implements the core type `BootInput`. This type includes the following fields (in this order):
-* `numobs::Int` -> Number of observations (per column) in the dataset that is to be bootstrapped
-* `blocklength::Float64` -> Block length for the  bootstrap procedure
-* `numresample::Int` -> Number of bootstrap resamples to use
-* `bootmethod::BootMethod` -> Indicates which bootstrap methodology to use
-* `blmethod::BLMethod` -> Indicates which block length selection procedure to use (if blocklength <= 0.0)
-* `flevel1::Function` -> The level 1 statistic of interest
-* `flevel2::Function` -> The level 2 parameter of interest
-* `numobsperresample::Int` -> Number of observations per resample (almost always equal to numobs)
+#### Exported functions
 
-For convenience, a keyword constructor for `BootInput` is provided and the function signature follows:
-
-`BootInput(data ; blocklength::Number=0.0, numresample::Number=NUM_RESAMPLE, bootmethod::Symbol=:stationary, blmethod::Symbol=:dummy, flevel1::Function=mean, flevel2::Function=var, numobsperresample::Number=data_length(data))`
-
-Some remarks are useful here:
-
-* `data` is the users dataset. Currently accepted types for `data` are `Vector{T<:Number}`, `Vector{Vector{T<:Number}}`, and `Matrix{T<:Number}`. Additional types for `data` are easy to add and so interested users should open an issue on github. In what follows, the type of `data` will be written as `T_data`
-* The default value for `blocklength` is 0.0. Any input `blocklength` <= 0.0 tells the `BootInput` constructor to estimate the optimal block length using the input `data` and the supplied block length method, or, if no block length method is supplied, to choose the best available block length procedure for the given bootstrap methodology.
-* The default value for numresample is the module constant `NUM_RESAMPLE` which is currently `1000`.
-* `bootmethod` can be specified using a symbol, which is converted to the appropriate type (which will be a subtype of the abstract `BootMethod`) by the constructor. Valid values are `:iid`, `:stationary`, `:moving`, `:circular`, and `:nooverlap`. Hopefully `:tapered` will be available in future iterations of this package.
-* `blmethod` can be specified using a symbol, which is converted to the appropriate type (which will be a subtype of the abstract `BLMethod`) by the constructor. The default value of `:dummy` tells the constructor to choose the most appropriate block length selection procedure for the given `bootmethod`. Note, if the input `blocklength` is > 0.0, then `blmethod` is irrelevant. Valid symbols for `blmethod` are `:ppw2009` and `:pp2002`. It is anticipated that the vast majority of users will want to use `:ppw2009`, and this will be auto-selected for all bootstrap methods, except `:tapered`, which, when operational, will use `:pp2002`.
-* `flevel1` should be a function that accepts an input of type `T_data`, and can return whatever type the user wants (note, it does not need to be scalar). In what follows, the output type of `flevel1` will be written as `T_level1`.
-* `flevel2` should be a function that accepts an input of type `T_level1`, and can return whatever type the user wants (again, it need not be scalar). In what follows, the output type of `flevel2` will be written as `T_level2`.
-
-Several fields of a `BootInput` can be modified using the following exported functions:
-* `setblocklength!(b::BootInput, blocklength::Number)`
-* `setnumresample!(b::BootInput, numresample::Number)`
-* `setflevel1!(b::BootInput, flevel1::Function)`
-* `setflevel2!(b::BootInput, flevel2::Function)`
-
-If you wish to modify any other fields, it is better just to construct a new `BootInput` (a near instantaneous procedure).
-
-#### Functions
-
-All core functions exported by this package include (at least) the following core function signature:
-
-`f(data, bi::BootInput)`
-
-where `data` is the users underlying dataset. They also incldue the following keyword function signature:
-
-`f(data ; blocklength::Number=0.0, numresample::Number=NUM_RESAMPLE, bootmethod::Symbol=:stationary, blmethod::Symbol=:dummy, flevel1::Function=mean, flevel2::Function=var, numobsperresample::Number=data_length(data))`
-
-where this method simply wraps the keyword constructor for `BootInput` in the first step and then calls the core function signature above.
-Several exported functions also have other methods, which users are welcome to explore using Julia's `methods` function, or by using docstrings (i.e. type `?f` at the REPL, where `f` is the function name). However, it is envisaged that most users will use one of the two signatures described above.
-
-The package exports the following core functions:
+The package exports the following functions, all of which have docstrings that can be called interactively at the REPL:
 * `dbootinds(...)::Vector{Vector{Int}}` -> Returns indices that can be used to index into the underlying data to obtain bootstrapped data. Note, each inner vector of the output corresponds to a single re-sample for the underlying data.
-* `dbootdata(...)::Vector{T_data}` -> Returns the bootstrapped data. Each element of the output vector corresponds to one re-sampled dataset, and the output vector will have length equal to `numresample`.
-* `dbootlevel1(...)::Vector{T_level1}` -> Returns a vector of bootstrapped level 1 statistics, where the output vector will have length equal to `numresample`
+* `dbootdata(...)::Vector{T_data}` -> Returns the bootstrapped data. Each element of the output vector corresponds to one re-sampled dataset, and the output vector will have length equal to `numresample` (a parameter discussed later).
+* `dbootlevel1(...)::Vector{T_level1}` -> Returns a vector of bootstrapped level 1 statistics, where the output vector will have length equal to `numresample`.
 * `dbootlevel2(...)::T_level2` -> Returns the bootstrapped distribution parameter of the level 1 statistic.
-* `dboot(...)::T_level2` -> Identical to dbootlevel2
+* `dboot(...)::T_level2` -> Identical to dbootlevel2. Most users will want to use this function.
 * `dbootvar(...)::Float64` -> Identical to `dboot` but automatically sets `flevel2` to `var` (the sample variance function)
 * `dbootconf(...)::Vector{Float64}` -> Identical to `dboot` but automatically sets `flevel2` to the anonymous function `x -> quantile(x, [0.025, 0.975])`, so the level 2 distribution parameter is a 95% confidence interval. In addition to the usual keywords, the keyword version of this function also accepts the keyword `alpha::Float64=0.05`, which controls the width of the confidence interval. Note, `0.05` corresponds to a 95% confidence interval, `0.1` to a 90% interval, and `0.01` to a 99% interval (and so on).
-* `optblocklength(...)::Float64` -> Returns the optimal block length. If `data` is a multivariate dataset, then the core function signatures include an optional additional input `[, f::Function=median]`. In this situation, the optimal block length is calculated for each column of the input `data` and then `f` is applied to reduce this `Vector{Float64}` to a single `Float64` optimal block length estimate. As can be seen, the default transformation is `median`.
+* `optblocklength(...)::Float64` -> Returns the optimal block length.
 
 The function `bandwidth_politis_2003{T<:Number}(x::AbstractVector{T})::Tuple{Int, Float64, Vector{Float64}}` is not exported, but the docstrings can be accessed using `?DependentBootstrap.bandwidth_politis_2003` at the REPL. This function implements the bandwidth selection procedure from Politis (2003) discussed above, and may be of independent interest to some users.
+
+All of the above functions exhibit the following two core methods:
+
+`f(data ; kwargs...)`
+`f(data, bi::BootInput)`
+
+where `data` is the users underlying dataset, `kwargs` is a collection of keyword arguments, and `bi::BootInput` is a core type exported by the module that will be discussed later (but can be safely ignored by most users). The following types for `data` are currently accepted:
+* `Vector{<:Number}`,
+* `Matrix{<:Number}` where rows are observations and columns are variables,
+* `Vector{Vector{<:Number}}` where each inner vector is a variable,
+* `DataFrame`
+* `TimeArray`
+
+Of the two core methods, most users will want the `kwargs` method. A list of valid keyword arguments and their default values follows:
+* blocklength         <- Block length for bootstrapping procedure. The default value is 0. Set to <= 0 to auto-estimate the optimal block length from the dataset. Float64 inputs are allowed.
+* numresample         <- Number of times to resample the input dataset. The default value is the module constant NUM_RESAMPLE, currently set to 1000.
+* bootmethod          <- Bootstrapping methodology to use. The default value is the Symbol :stationary (for the stationary bootstrap).
+* blocklengthmethod   <- Block length selection procedure to use if user wishes to auto-estimate the block length. Default value is the Symbol :ppw2009 (use the method described in Patton, Politis, and White (2009)).
+* flevel1             <- A function that converts the input dataset to the estimator that the user wishes to bootstrap. The default value is `mean`.
+* flevel2             <- A function that converts a vector of estimators constructed by flevel1 into a distributional parameter. The default value is `var`.
+* numobsperresample   <- Number of observations to be drawn (with replacement) per resample. The default value is the number of observations in the dataset (the vast majority of users will want this default value).
+* fblocklengthcombine <- A function for converting a Vector{Float64} of estimated blocklengths to a single Float64 blocklength estimate, which is necessary when the input dataset is a multivariate type. The default value is `median`.
+
+A list of acceptable keyword arguments for bootmethod and blocklengthmethod follows. Note you can use either `String` or `Symbol` when specifying these arguments. For bootmethod we have:
+* `:iid` or `:efron`                     <- IID bootstrap
+* `:stationary`                          <- Stationary bootstrap
+* `:movingblock` or `:moving`            <- Moving block bootstrap
+* `:nonoverlappingblock` or `:nooverlap` <- Nonoverlapping block bootstrap
+* `:circularblock` or `circular`         <- Circular block bootstrap
+
+For blocklengthmethod we have:
+* `:ppw2009` <- Block length selection method of Patton, Politis, and White (2009)
+
+Acceptable arguments can also be examined interactively by examining the keys of the module dictionaries `BOOT_METHOD_DICT` and `BLOCKLENGTH_METHOD_DICT`.
+
+In practice, the keyword argument method `f(data ; kwargs...)` actually just wraps a call to `f(data, BootInput(kwargs...))` under the hood. However, most users will not need to concern themselves with this level of detail.
+
+For those who wish more fine-grained control, please use `?BootInput` at the REPL to get more information on this core module type.
+
+Finally, note the function `bandwidth_politis_2003{T<:Number}(x::AbstractVector{T})::Tuple{Int, Float64, Vector{Float64}}` is not exported, but the docstrings can be accessed using `?DependentBootstrap.bandwidth_politis_2003` at the REPL. This function implements the bandwidth selection procedure from Politis (2003) discussed above, and may be of independent interest to some users.
 
 #### Examples
 
