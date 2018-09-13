@@ -63,8 +63,8 @@ The function `bandwidth_politis_2003{T<:Number}(x::AbstractVector{T})::Tuple{Int
 
 All of the above functions exhibit the following two core methods:
 
-`f(data ; kwargs...)`
-`f(data, bi::BootInput)`
+* `f(data ; kwargs...)`
+* `f(data, bi::BootInput)`
 
 where `data` is the users underlying dataset, `kwargs` is a collection of keyword arguments, and `bi::BootInput` is a core type exported by the module that will be discussed later (but can be safely ignored by most users). The following types for `data` are currently accepted:
 * `Vector{<:Number}`,
@@ -98,8 +98,6 @@ Acceptable arguments can also be examined interactively by examining the keys of
 In practice, the keyword argument method `f(data ; kwargs...)` actually just wraps a call to `f(data, BootInput(kwargs...))` under the hood. However, most users will not need to concern themselves with this level of detail.
 
 For those who wish more fine-grained control, please use `?BootInput` at the REPL to get more information on this core module type.
-
-Finally, note the function `bandwidth_politis_2003{T<:Number}(x::AbstractVector{T})::Tuple{Int, Float64, Vector{Float64}}` is not exported, but the docstrings can be accessed using `?DependentBootstrap.bandwidth_politis_2003` at the REPL. This function implements the bandwidth selection procedure from Politis (2003) discussed above, and may be of independent interest to some users.
 
 #### Examples
 
