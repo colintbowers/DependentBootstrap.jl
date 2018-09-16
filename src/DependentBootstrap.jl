@@ -87,7 +87,7 @@ function __init__()
 		(num_var(data::TimeSeries.TimeArray{T,2})::Int) where {T} = size(data, 2)
 		(local_get_var(data::TimeSeries.TimeArray{T,1}, i::Int)::Vector{T}) where {T} = i == 1 ? data.values[:] : error("Invalid index $(i) given data $(typeof(data)) with number of columns $(num_var(data))")
 		(local_get_var(data::TimeSeries.TimeArray{T,2}, i::Int)::Vector{T}) where {T} = (1 <= i <= num_var(data)) ? data.values[:, i] : error("Invalid index $(i) given data $(typeof(data)) with number of columns $(num_var(data))")
-		(local_get_index(data::TimeSeries.TimeArray{T,1}, inds::Vector{Int})::TimeSeries.TimeArray{T,1},) where {T} = TimeSeries.TimeArray(TimeSeries.timestamp(data), data.values[inds], TimeSeries.colnames(data) ; unchecked=true)
+		(local_get_index(data::TimeSeries.TimeArray{T,1}, inds::Vector{Int})::TimeSeries.TimeArray{T,1}) where {T} = TimeSeries.TimeArray(TimeSeries.timestamp(data), data.values[inds], TimeSeries.colnames(data) ; unchecked=true)
 		(local_get_index(data::TimeSeries.TimeArray{T,2}, inds::Vector{Int})::TimeSeries.TimeArray{T,2}) where {T} = TimeSeries.TimeArray(TimeSeries.timestamp(data), data.values[inds, :], TimeSeries.colnames(data) ; unchecked=true)
 	end
 	@require DataFrames="a93c6f00-e57d-5684-b7b6-d8193f3e46c0" begin
