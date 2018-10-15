@@ -96,5 +96,6 @@ use ?BootInput at the REPL for more detail on feasible keywords.
 
 Please use dbootinds_one if you only want to obtain a single Vector{Int} resampling index.
 """
-(dbootinds(data, bi::BootInput)::Vector{Vector{Int}}) = check_bi_for_dbootvecinds(bi) ? [ dbootinds_one(bi) for n = 1:bi.numresample ] : error("Logic fail in check_bi_for_dbootvecinds. Please file an issue.")
+(dbootinds(bi::BootInput)::Vector{Vector{Int}}) = check_bi_for_dbootvecinds(bi) ? [ dbootinds_one(bi) for n = 1:bi.numresample ] : error("Logic fail in check_bi_for_dbootvecinds. Please file an issue.")
+(dbootinds(data, bi::BootInput)::Vector{Vector{Int}}) = dbootinds(bi)
 (dbootinds(data ; kwargs...)::Vector{Vector{Int}}) = dbootinds(data, BootInput(data ; kwargs...))
