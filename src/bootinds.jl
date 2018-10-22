@@ -22,7 +22,7 @@ use ?BootInput at the REPL for more detail on feasible keywords.
 """
 (dbootinds_one(bi::BootInput{BootIID})::Vector{Int}) = rand(1:bi.numobs, bi.numobsperresample)
 function dbootinds_one(bi::BootInput{BootStationary})::Vector{Int}
-    bi.blocklength <= 1.0 && return dbootinds_one(bi, BootIID())
+    bi.blocklength <= 1.0 && return rand(1:bi.numobs, bi.numobsperresample)
     inds = zeros(Int, bi.numobsperresample)
     geo1 = Geometric(1 / bi.blocklength)
     (c, geodraw) = (1, 1)
@@ -40,7 +40,7 @@ function dbootinds_one(bi::BootInput{BootStationary})::Vector{Int}
 end
 function dbootinds_one(bi::BootInput{BootMoving})::Vector{Int}
     bl = ceil(Int, bi.blocklength)
-    bl == 1 && return dbootinds_one(bi, BootIID())
+    bl == 1 && return rand(1:bi.numobs, bi.numobsperresample)
     inds = zeros(Int, bi.numobsperresample)
     blockstart_ub = max(1, bi.numobs-bl+1)
     for n = 1:bl:bi.numobsperresample
@@ -53,7 +53,7 @@ function dbootinds_one(bi::BootInput{BootMoving})::Vector{Int}
 end
 function dbootinds_one(bi::BootInput{BootCircular})::Vector{Int}
     bl = ceil(Int, bi.blocklength)
-    bl == 1 && return dbootinds_one(bi, BootIID())
+    bl == 1 && return rand(1:bi.numobs, bi.numobsperresample)
     inds = zeros(Int, bi.numobsperresample)
     for n = 1:bl:bi.numobsperresample
         inds[n] = rand(1:bi.numobs) #Start of block
@@ -65,7 +65,7 @@ function dbootinds_one(bi::BootInput{BootCircular})::Vector{Int}
 end
 function dbootinds_one(bi::BootInput{BootNoOverlap})::Vector{Int}
     bl = ceil(Int, bi.blocklength)
-    bl == 1 && return(dbootinds(bi, BootIID()))
+    bl == 1 && return rand(1:bi.numobs, bi.numobsperresample)
     inds = zeros(Int, bi.numobsperresample)
 	blockstart_ub = max(1, bi.numobs-bl+1)
 	blockstartvalues = collect(1:bl:blockstart_ub) #Build valid set of start indices for any block

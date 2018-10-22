@@ -73,11 +73,17 @@ end
 #Test univariate bootstrap method
 bootmethodvec = [:iid, :stationary, :moving, :circular, :nooverlap];
 correctbootunivariate = Float64[0.02231785457420185,0.0805280736777265,0.07755558515710691,0.07248357346968781,0.0718412998084052]
+correctbootunivariatebl1 = 0.021374650187840242*ones(Float64, length(bootmethodvec))
 @testset "Univariate bootstrap test" begin
     for kbm = 1:length(bootmethodvec)
         Random.seed!(1234)
         y = dboot(x, numresample=1000, bootmethod=bootmethodvec[kbm], blocklength=5, flevel1=mean, flevel2=var)
         @test isapprox(y, correctbootunivariate[kbm])
+    end
+    for kbm = 1:length(bootmethodvec)
+        Random.seed!(1234)
+        y = dboot(x, numresample=500, bootmethod=bootmethodvec[kbm], blocklength=1, flevel1=mean, flevel2=var)
+        @test isapprox(y, correctbootunivariatebl1[kbm])
     end
 end
 
@@ -111,16 +117,14 @@ end
     xdf = DataFrame(xmat)
     y = dboot(xdf, bootmethod=:stationary, blocklength=5, numresample=1000, flevel1=x->mean(DataFrames.columns(x)[1]))
     @test isapprox(y, 0.0805280736777265)
-    println("NOTE: TimeSeries TimeArray type testing currently disabled due to deprecation issues in the TimeSeries package. Consequently, datasets of type TimeArray may encounter errors. If you experience problems, try converting your data to a regular array or dataframe type before calling bootstrap procedures. If you see this message and we have reached the year 2019, please file an issue at the DependentBootstrap github page so the tests can be re-activated.")
-    # using TimeSeries
-    # dtvec = [ Date(2000)+Day(n) for n = 1:size(xmat,1) ]
-    # xta1 = TimeSeries.TimeArray(dtvec, x)
-    # xta2 = TimeSeries.TimeArray(dtvec, xmat)
-    # Random.seed!(1234)
-    # y1 = dboot(xta1, bootmethod=:stationary, blocklength=5, numresample=1000, flevel1=x->mean(x.values[:]))
-    # Random.seed!(1234)
-    # y2 = dboot(xta2, bootmethod=:stationary, blocklength=5, numresample=1000, flevel1=x->mean(x.values[:,:]))
-    # println(y1)
-    # println(y2)
-
+    using TimeSeries
+    dtvec = [ Date(2000)+Day(n) for n = 1:size(xmat,1) ]
+    xta1 = TimeSeries.TimeArray(dtvec, x)
+    xta2 = TimeSeries.TimeArray(dtvec, xmat)
+    Random.seed!(1234)
+    y1 = dboot(xta1, bootmethod=:stationary, blocklength=5, numresample=1000, flevel1=x->mean(x.values[:]))
+    Random.seed!(1234)
+    y2 = dboot(xta2, bootmethod=:stationary, blocklength=5, numresample=1000, flevel1=x->mean(x.values[:,:]))
+    @test isapprox(y1, 0.0805280736777265)
+    @test isapprox(y2, 0.05077003035163576)
 end
