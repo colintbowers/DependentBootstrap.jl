@@ -112,12 +112,11 @@ end
 
 #Test exotic dataset types
 @testset "Exotic data types test" begin
-    using DataFrames
+    using DataFrames, TimeSeries
     Random.seed!(1234)
     xdf = DataFrame(xmat)
     y = dboot(xdf, bootmethod=:stationary, blocklength=5, numresample=1000, flevel1=x->mean(DataFrames.columns(x)[1]))
     @test isapprox(y, 0.0805280736777265)
-    using TimeSeries
     dtvec = [ Date(2000)+Day(n) for n = 1:size(xmat,1) ]
     xta1 = TimeSeries.TimeArray(dtvec, x)
     xta2 = TimeSeries.TimeArray(dtvec, xmat)
