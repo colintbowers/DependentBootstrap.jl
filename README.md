@@ -115,4 +115,4 @@ Now let `data::Matrix{Float64}`.
 
 If the user wants the median optimal block length from each column of `data`, use `optblocklength(data, blmethod=:ppw2009)`. If the user wants the average optimal block length use `optblocklength(data, blmethod=:ppw2009, fblocklengthcombine=mean)`.
 
-If the user wants the median of the test statistic that is the maximum of the sample mean of each column, using a stationary bootstrap with optimal block length, then use `dboot(data, flevel1=(x -> maximum(mean(x, 1))), flevel2=median)`. If `data::Vector{Vector{Float64}}` instead, and the user wanted the 95% confidence interval, use `dbootconf(data, flevel1=(x -> maximum([ mean(x[k]) for k = 1:length(x) ])))`.
+If the user wants the median of the test statistic that is the maximum of the sample mean of each column, using a stationary bootstrap with optimal block length, then use `dboot(data, flevel1=(x -> maximum(mean(x, dims=1))), flevel2=median)`. If `data::Vector{Vector{Float64}}` instead, and the user wanted the 95% confidence interval, use `dbootconf(data, flevel1=(x -> maximum([ mean(x[k]) for k = 1:length(x) ])))`.
