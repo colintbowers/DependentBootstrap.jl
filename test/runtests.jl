@@ -3,7 +3,7 @@ using Random, Test
 using StatsBase
 using Distributions
 using DependentBootstrap
-using Requires
+using DataFrames, TimeSeries
 
 #Quick and dirty function for simulating AR(1) data with deterministic start point for random number generation
 function temp_ar(seedint::Int)
@@ -112,7 +112,6 @@ end
 
 #Test exotic dataset types
 @testset "Exotic data types test" begin
-    using DataFrames, TimeSeries
     Random.seed!(1234)
     xdf = DataFrame(xmat)
     y = dboot(xdf, bootmethod=:stationary, blocklength=5, numresample=1000, flevel1=x->mean(DataFrames.columns(x)[1]))
@@ -121,9 +120,9 @@ end
     xta1 = TimeSeries.TimeArray(dtvec, x)
     xta2 = TimeSeries.TimeArray(dtvec, xmat)
     Random.seed!(1234)
-    y1 = dboot(xta1, bootmethod=:stationary, blocklength=5, numresample=1000, flevel1=x->mean(x.values[:]))
+    y1 = dboot(xta1, bootmethod=:stationary, blocklength=5, numresample=1000, flevel1=x->mean(values(x)))
     Random.seed!(1234)
-    y2 = dboot(xta2, bootmethod=:stationary, blocklength=5, numresample=1000, flevel1=x->mean(x.values[:,:]))
+    y2 = dboot(xta2, bootmethod=:stationary, blocklength=5, numresample=1000, flevel1=x->mean(values(x)))
     @test isapprox(y1, 0.0805280736777265)
     @test isapprox(y2, 0.05077003035163576)
 end

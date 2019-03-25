@@ -1,23 +1,37 @@
 
+
 "num_obs <- Internal function used to determine the number of observations in the input dataset"
 (num_obs(data::AbstractVector{T})::Int) where {T} = length(data)
 (num_obs(data::AbstractMatrix{T})::Int) where {T} = size(data, 1)
 (num_obs(data::Vector{Vector{T}})::Int) where {T} = (isempty(data) || any(length.(data) .!= length(data[1]))) ? error("Input dataset is empty, or inner vectors of input dataset do not have matching length: $(length.(data))") : length(data[1])
+(num_obs(data::DataFrames.DataFrame)::Int) = size(data, 1)
+(num_obs(data::TimeSeries.TimeArray{T,1})::Int) where {T} = size(data, 1)
+(num_obs(data::TimeSeries.TimeArray{T,2})::Int) where {T} = size(data, 1)
 
 "num_var <- Internal function used to determine the number of variables in the input dataset"
 (num_var(data::AbstractVector{T})::Int) where {T} = 1
 (num_var(data::AbstractMatrix{T})::Int) where {T} = size(data, 2)
 (num_var(data::Vector{Vector{T}})::Int) where {T} = isempty(data) ? error("Input dataset is empty") : length(data)
+(num_var(data::DataFrames.DataFrame)::Int) = size(data, 2)
+(num_var(data::TimeSeries.TimeArray{T,1})::Int) where {T} = 1
+(num_var(data::TimeSeries.TimeArray{T,2})::Int) where {T} = size(data, 2)
 
 "local_get_var <- Internal function used to get the ith variable in dataset"
 (local_get_var(data::AbstractVector{T}, i::Int)::Vector{T}) where {T} = i == 1 ? data[:] : error("Invalid index $(i) given data $(typeof(data))")
 (local_get_var(data::AbstractMatrix{T}, i::Int)::Vector{T}) where {T} = (1 <= i <= size(data,2)) ? data[:, i] : error("Invalid index $(i) given data $(typeof(data)) with number of columns $(size(data, 2))")
 (local_get_var(data::Vector{Vector{T}}, i::Int)::Vector{T}) where {T} = (1 <= i <= length(data)) ? data[i] : error("Invalid index $(i) given data $(typeof(data)) with outer length: $(length(data))")
+(local_get_var(data::DataFrames.DataFrame, i::Int)) = (1 <= i <= num_var(data)) ? data[:, i] : error("Invalid index $(i) given data $(typeof(data)) with number of columns $(num_var(data))")
+(local_get_var(data::TimeSeries.TimeArray{T,1}, i::Int)::Vector{T}) where {T} = i == 1 ? values(data) : error("Invalid index $(i) given data $(typeof(data)) with number of columns $(num_var(data))")
+(local_get_var(data::TimeSeries.TimeArray{T,2}, i::Int)::Vector{T}) where {T} = (1 <= i <= num_var(data)) ? values(data)[:,i] : error("Invalid index $(i) given data $(typeof(data)) with number of columns $(num_var(data))")
 
 "local_get_index <- Internal function used to resample the dataset data using the input resampling index inds"
 (local_get_index(data::AbstractVector{T}, inds::Vector{Int})::Vector{T}) where {T} = data[inds]
 (local_get_index(data::AbstractMatrix{T}, inds::Vector{Int})::Matrix{T}) where {T} = data[inds, :]
 (local_get_index(data::Vector{Vector{T}}, inds::Vector{Int})::Vector{Vector{T}}) where {T} = [ y[inds] for y in data ]
+(local_get_index(data::DataFrames.DataFrame, inds::Vector{Int})::DataFrames.DataFrame) = data[inds, :]
+(local_get_index(data::TimeSeries.TimeArray{T,1}, inds::Vector{Int})::TimeSeries.TimeArray{T,1}) where {T} = TimeSeries.TimeArray(TimeSeries.timestamp(data), values(data)[inds], TimeSeries.colnames(data) ; unchecked=true)
+(local_get_index(data::TimeSeries.TimeArray{T,2}, inds::Vector{Int})::TimeSeries.TimeArray{T,2}) where {T} = TimeSeries.TimeArray(TimeSeries.timestamp(data), values(data)[inds, :], TimeSeries.colnames(data) ; unchecked=true)
+
 
 """
     dbootdata_one(data::T, bi::BootInput)::T

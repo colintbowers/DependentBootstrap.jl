@@ -50,7 +50,7 @@ This package has an MIT license. Please see associated LICENSE.md file for more 
 """
 module DependentBootstrap
 
-using 	Requires, StatsBase, Distributions
+using 	StatsBase, Distributions, DataFrames, TimeSeries
 
 import 	Base: 	show
 
@@ -66,6 +66,9 @@ export 	BootInput,
 
 const NUM_RESAMPLE = 1000::Int #Default number of bootstrap resamples
 
+#-----------------------------------------------------------------------------------------
+# OLD CODE THAT USED Requires.jl TO LOAD DataFrames.jl and TimeSeries.jl
+#-----------------------------------------------------------------------------------------
 #In order to accommodate different types of datasets, we use the lazy loading
 #features offered by the Requires package here, so that the modules in which these
 #datasets are defined are not loaded unless they are actually needed. All functions
@@ -79,24 +82,25 @@ const NUM_RESAMPLE = 1000::Int #Default number of bootstrap resamples
 #    local_get_var(data::T, i::Int)::Vector <- Get the data associated with the ith variable and output as a Vector
 #	 local_get_index(data::T, inds::Vector{Int})::T <- Resample data using resampling indices in inds
 #For local_get_index, note that the output type should always match the input type of the dataset.
-function __init__()
-	@require TimeSeries="9e3dc215-6440-5c97-bce1-76c03772f85e" begin
-		(num_obs(data::TimeSeries.TimeArray{T,1})::Int) where {T} = size(data, 1)
-		(num_obs(data::TimeSeries.TimeArray{T,2})::Int) where {T} = size(data, 1)
-		(num_var(data::TimeSeries.TimeArray{T,1})::Int) where {T} = 1
-		(num_var(data::TimeSeries.TimeArray{T,2})::Int) where {T} = size(data, 2)
-		(local_get_var(data::TimeSeries.TimeArray{T,1}, i::Int)::Vector{T}) where {T} = i == 1 ? data.values[:] : error("Invalid index $(i) given data $(typeof(data)) with number of columns $(num_var(data))")
-		(local_get_var(data::TimeSeries.TimeArray{T,2}, i::Int)::Vector{T}) where {T} = (1 <= i <= num_var(data)) ? data.values[:, i] : error("Invalid index $(i) given data $(typeof(data)) with number of columns $(num_var(data))")
-		(local_get_index(data::TimeSeries.TimeArray{T,1}, inds::Vector{Int})::TimeSeries.TimeArray{T,1}) where {T} = TimeSeries.TimeArray(TimeSeries.timestamp(data), data.values[inds], TimeSeries.colnames(data) ; unchecked=true)
-		(local_get_index(data::TimeSeries.TimeArray{T,2}, inds::Vector{Int})::TimeSeries.TimeArray{T,2}) where {T} = TimeSeries.TimeArray(TimeSeries.timestamp(data), data.values[inds, :], TimeSeries.colnames(data) ; unchecked=true)
-	end
-	@require DataFrames="a93c6f00-e57d-5684-b7b6-d8193f3e46c0" begin
-		(num_obs(data::DataFrames.DataFrame)::Int) = size(data, 1)
-		(num_var(data::DataFrames.DataFrame)::Int) = size(data, 2)
-		(local_get_var(data::DataFrames.DataFrame, i::Int)) = (1 <= i <= num_var(data)) ? data[:, i] : error("Invalid index $(i) given data $(typeof(data)) with number of columns $(num_var(data))")
-		(local_get_index(data::DataFrames.DataFrame, inds::Vector{Int})::DataFrames.DataFrame) = data[inds, :]
-	end
-end
+# function __init__()
+# 	@require TimeSeries="9e3dc215-6440-5c97-bce1-76c03772f85e" begin
+# 		(num_obs(data::TimeSeries.TimeArray{T,1})::Int) where {T} = size(data, 1)
+# 		(num_obs(data::TimeSeries.TimeArray{T,2})::Int) where {T} = size(data, 1)
+# 		(num_var(data::TimeSeries.TimeArray{T,1})::Int) where {T} = 1
+# 		(num_var(data::TimeSeries.TimeArray{T,2})::Int) where {T} = size(data, 2)
+# 		(local_get_var(data::TimeSeries.TimeArray{T,1}, i::Int)::Vector{T}) where {T} = i == 1 ? data.values[:] : error("Invalid index $(i) given data $(typeof(data)) with number of columns $(num_var(data))")
+# 		(local_get_var(data::TimeSeries.TimeArray{T,2}, i::Int)::Vector{T}) where {T} = (1 <= i <= num_var(data)) ? data.values[:, i] : error("Invalid index $(i) given data $(typeof(data)) with number of columns $(num_var(data))")
+# 		(local_get_index(data::TimeSeries.TimeArray{T,1}, inds::Vector{Int})::TimeSeries.TimeArray{T,1}) where {T} = TimeSeries.TimeArray(TimeSeries.timestamp(data), data.values[inds], TimeSeries.colnames(data) ; unchecked=true)
+# 		(local_get_index(data::TimeSeries.TimeArray{T,2}, inds::Vector{Int})::TimeSeries.TimeArray{T,2}) where {T} = TimeSeries.TimeArray(TimeSeries.timestamp(data), data.values[inds, :], TimeSeries.colnames(data) ; unchecked=true)
+# 	end
+# 	@require DataFrames="a93c6f00-e57d-5684-b7b6-d8193f3e46c0" begin
+# 		(num_obs(data::DataFrames.DataFrame)::Int) = size(data, 1)
+# 		(num_var(data::DataFrames.DataFrame)::Int) = size(data, 2)
+# 		(local_get_var(data::DataFrames.DataFrame, i::Int)) = (1 <= i <= num_var(data)) ? data[:, i] : error("Invalid index $(i) given data $(typeof(data)) with number of columns $(num_var(data))")
+# 		(local_get_index(data::DataFrames.DataFrame, inds::Vector{Int})::DataFrames.DataFrame) = data[inds, :]
+# 	end
+# end
+#-----------------------------------------------------------------------------------------
 
 include("types.jl")
 include("blocklength.jl")
