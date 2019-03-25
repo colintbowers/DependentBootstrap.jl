@@ -31,15 +31,15 @@ The module is implemented entirely in Julia.
 
 ## What this package does not include
 
-I have not included any procedures for bootstrapping confidence intervals in a linear regression framework. I believe that this functionality is better provided by a separate package (possibly GLM), that can use this package for the bootstrapping step.
+I have not included any procedures for bootstrapping confidence intervals in a linear regression framework, or other parametric models. This functionality is provided by [Bootstrap.jl](https://github.com/juliangehring/Bootstrap.jl), and work is currently under way to add bootstrap methods from this package to the `Bootstrap` API.
 
-I also have not included support for the jackknife, wild bootstrap, parametric bootstrap, or subsampling procedures. I would be quite open to pull requests that add these methods to the present package, but have not had time to implement them myself. Work is ongoing to include the tapered block bootstrap, and ideally, the package will also eventually include the extended tapered block bootstrap. If you are interested in working on any of these projects, please feel free to contact me.
+I also have not included support for the jackknife, wild bootstrap, or subsampling procedures. I would be quite open to pull requests that add these methods to the present package, but have not had time to implement them myself. Work is ongoing to include the tapered block bootstrap, and ideally, the package will also eventually include the extended tapered block bootstrap. If you are interested in working on any of these projects, please feel free to contact me.
 
 ## How to use this package
 
 #### Installation
 
-This package should be added using `using Pkg ; Pkg.add("DependentBootstrap")`, and can then be called with `using DependentBootstrap`. The package has three core dependencies: `StatsBase`, `Distributions`, and `Requires`. Support for datatypes defined in `DataFrames` and `TimeSeries` is also included, but these packages are lazily-loaded by Requires only when needed, and so are not explicit dependencies.
+This package should be added using `using Pkg ; Pkg.add("DependentBootstrap")`, and can then be called with `using DependentBootstrap`. The package depends on `StatsBase` and `Distributions` for some functionality, and on `DataFrames` and `TimeSeries` so that `DataFrame` and `TimeArray` datasets can be supported by this packages methods.
 
 #### Terminology
 
