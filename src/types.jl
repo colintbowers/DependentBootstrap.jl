@@ -190,13 +190,14 @@ struct BootInput{Tbm<:BootMethod,Tbl<:BlockLengthMethod,Tf1<:Function,Tf2<:Funct
 	end
 end
 #BootInput empty constructor
-BootInput() = BootInput{BootDummy,BLPPW2009,typeof(mean),typeof(var),typeof(identity)}(0, 1.0, 0, BootDummy(), BLPPW2009(), mean, var, 0, identity)
+BootInput() = BootInput(2, 1.0, 1, BootIID(), BLPPW2009(), mean, var, 1, identity)
 #BootInput constructor that ensures blocklength is auto-detected if need be
-function BootInput(data, numobs::Int, blocklength::Float64, numresample::Int, bootmethod::Tbm, blocklengthmethod::Tbl, flevel1::Tf1,
+function BootInput(data, numobs::Int, blocklength::Number, numresample::Int, bootmethod::Tbm, blocklengthmethod::Tbl, flevel1::Tf1,
                    flevel2::Tf2, numobsperresample::Int, fblocklengthcombine::Tfc) where {Tbm<:BootMethod,Tbl<:BlockLengthMethod,Tf1<:Function,Tf2<:Function,Tfc<:Function}
+	blocklength = Float64(blocklength)
     Tbm <: BootIID && (blocklength = 1.0)
     blocklength <= 0.0 && (blocklength = optblocklength(data, blocklengthmethod, bootmethod, fblocklengthcombine))
-	return BootInput{Tbm,Tbl,Tf1,Tf2,Tfc}(numobs, blocklength, numresample, bootmethod, blocklengthmethod, flevel1, flevel2, numobsperresample, fblocklengthcombine)
+	return BootInput(numobs, blocklength, numresample, bootmethod, blocklengthmethod, flevel1, flevel2, numobsperresample, fblocklengthcombine)
 end
 #BootInput constructors that use keyword arguments
 function BootInput(data ; blocklength=0, numresample=NUM_RESAMPLE, bootmethod=:stationary, blocklengthmethod=:dummy,

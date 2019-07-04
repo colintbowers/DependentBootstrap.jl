@@ -37,6 +37,15 @@ blocklengthmethodtypevec = [DependentBootstrap.BLPPW2009()]
     for kbm = 1:length(bootmethodvec)
         for kbl = 1:length(blocklengthvec)
             for kblm = 1:length(blocklengthmethodvec)
+                bi = BootInput(x, 100, blocklengthvec[kbl], 200, bootmethodtypevec[kbm],
+                               blocklengthmethodtypevec[kblm], var, std, 300, mean)
+                @test bi.numresample == 200
+                @test bi.bootmethod == bootmethodtypevec[kbm]
+                @test bi.blocklengthmethod == blocklengthmethodtypevec[kblm]
+                @test bi.flevel1 == var
+                @test bi.flevel2 == std
+                @test bi.numobsperresample == 300
+                @test bi.fblocklengthcombine == mean
                 bi = BootInput(x, numresample=200, bootmethod=bootmethodvec[kbm], blocklength=blocklengthvec[kbl],
                                blocklengthmethod=blocklengthmethodvec[kblm], flevel1=var, flevel2=std,
                                numobsperresample=300, fblocklengthcombine=mean)
@@ -114,7 +123,8 @@ end
 @testset "Exotic data types test" begin
     Random.seed!(1234)
     xdf = DataFrame(xmat)
-    y = dboot(xdf, bootmethod=:stationary, blocklength=5, numresample=1000, flevel1=x->mean(DataFrames.columns(x)[1]))
+    #y = dboot(xdf, bootmethod=:stationary, blocklength=5, numresample=1000, flevel1=x->mean(DataFrames.columns(x)[1]))
+    y = dboot(xdf, bootmethod=:stationary, blocklength=5, numresample=1000, flevel1=(x->mean(x[:,1])))
     @test isapprox(y, 0.0805280736777265)
     dtvec = [ Date(2000)+Day(n) for n = 1:size(xmat,1) ]
     xta1 = TimeSeries.TimeArray(dtvec, x)
