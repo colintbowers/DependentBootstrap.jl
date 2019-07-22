@@ -1,7 +1,7 @@
 name = "DependentBootstrap"
 uuid = "191d1da1-0f37-5779-b8ea-a655caa0c150"
 author = ["Colin T Bowers <colintbowers@gmail.com>"]
-version = "1.1.1"
+version = "1.1.2"
 
 [deps]
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
