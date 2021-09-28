@@ -1,6 +1,8 @@
 DependentBootstrap.jl
 =====================
 
+## Note: Package tests may fail on Julia v1.6 or later due to an update in random number generation. I need to update the tests in this package so they don't depend on the specifics of the underlying random number generator in Julia, which I will do in due course. For now, don't worry if the tests fail, nothing of note has been changed in this package in years.
+
 [![Build Status](https://travis-ci.org/colintbowers/DependentBootstrap.jl.svg?branch=master)](https://travis-ci.org/colintbowers/DependentBootstrap.jl)
 
 A module for the Julia language that implements several varieties of the dependent statistical bootstrap as well as the corresponding block-length selection procedures.
