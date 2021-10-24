@@ -63,7 +63,7 @@ end
 (optblocklength(data, bl::Tbl, bm::Tbm, f::Tf)::Float64) where {Tbl<:BlockLengthMethod,Tbm<:BootMethod,Tf<:Function} = f([ optblocklength(local_get_var(data, i), bl, bm) for i = 1:num_var(data) ])
 (optblocklength(data, bi::BootInput)::Float64) = bi.fblocklengthcombine([ optblocklength(local_get_var(data, i), bi) for i = 1:num_var(data) ])
 #Keyword input wrapper
-(optblocklength(data ; kwargs...)::Float64) = optblocklength(data, BootInput(data, kwargs...))
+(optblocklength(data ; kwargs...)::Float64) = optblocklength(data, BootInput(data ; kwargs...))
 
 #These two functions are used by several of the block-length selection procedures
 function blocklength_ma_and_cor(x::AbstractVector{T})::Tuple{Int, Float64, Vector{Float64}} where {T<:Number}
